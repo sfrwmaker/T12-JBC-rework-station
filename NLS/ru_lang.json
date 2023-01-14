@@ -1,0 +1,101 @@
+{
+	"standalone": {
+		"OFF":							"откл",
+		"ON":							"вкл",
+		"Fan:":							"Фен:",
+		"Pwr:":							"мощн:",
+		"Ref. #":						"Тчк №",
+		"REED":							"геркон",
+		"TILT":							"вибро",
+		"deg.":							"град.",
+		"min":							"мин",
+		"sec":							"сек",
+		"cw":							"вправо",
+		"ccw":							"влево",
+		"Set:":							"Уст:",
+		"ERROR":						"ОШИБКА",
+		"Tune PID":						"настройка ПИД",
+		"Select tip":					"Выбрать жало",
+		"FLASH read error":				"Ошибка чтения памяти",
+		"FLASH write erro":				"Ошибка записи в память",
+		"No directory":					"Нет каталога",
+		"format FLASH?":				"Форматировать?",
+		"Failed to format FLASH":		"Ошибка форматирования",
+		"saving configuration":			"сохранение",
+		"Hot Gun":						"Термофен",
+		"T12 iron":						"Жало T12",
+		"JBC iron":						"Жало JBC",
+		"Save?":						"Сохранить?",
+		"Yes":							"Да",
+		"No":							"Нет",
+		"Delete file?":					"Удалить файл?",
+		"FLASH debug":					"Отладка FLASH",
+		"Failed mount SD":				"Ошибка SD-карты",
+		"NO config file":				"Нет файла конф.",
+		"No lang. specified":			"Язык не задан",
+		"No memory":					"Недостаточно памяти",
+		"Inconsistent lang":			"Неполный язык"
+	},
+	"Menu": {
+		"Main Menu": {
+			"Main Menu":				"Основное меню",
+			"parameters":				"параметры",
+			"change T12 tip":			"сменить жало T12",
+			"activate tips":			"активация жал",
+			"T12 setup":				"настройка T12",
+			"JBC setup":				"настройка JBC",
+			"calibrate GUN":			"калибровка фена",
+			"reset config":				"сброс настроек",
+			"about":					"версия ПО",
+			"quit":						"выход"
+		},
+		"Parameters": {
+			"Parameters":				"Настройки",
+			"units":					"градусы",
+			"buzzer":					"зуммер",
+			"upper encoder":			"верхний энкодер",
+			"lower encoder":			"нижний энкодер",
+			"temp. step":				"шаг температуры",
+			"brightness":				"яркость",
+			"rotation":					"поворот",
+			"language":					"язык",
+			"tune PID":					"настройка ПИД",
+			"save":						"сохранить",
+			"cancel":					"отмена"
+		},
+		"T12 iron setup": {
+			"T12 iron setup":			"Паяльник T12",
+			"switch type":				"тип датчика",
+			"auto start":				"автостарт",
+			"auto off":					"выключение",
+			"standby temp":				"темп. ожидания",
+			"standby time":				"время ожидания",
+			"boost temp.":				"Буст темп.",
+			"boost time":				"Буст длит.",
+			"save":						"сохранить",
+			"calibrate tip":			"калибровка жала",
+			"back to menu":				"назад в меню"
+		},
+		"JBC iron setup": {
+			"auto off":					"выключение",
+			"standby temp.":			"темп. ожидания",
+			"save":						"сохранить",
+			"calibrate tip":			"калибровка жала",
+			"back to menu":				"назад в меню"
+		}
+		"Calibrate": {
+			"Calibrate":				"Калибровка",
+			"automatic":				"автоматически",
+			"manual":					"вручную",
+			"clear":					"сброс",
+			"quit":						"выход"
+		},
+		"Tune PID": {
+			"Tune PID":					"Настройка ПИД",
+			"T12 PID":					"ПИД T12",
+			"JBC PID":					"ПИД JBC",
+			"Gun PID":					"ПИД Термофена"
+			"back to menu":				"назад в меню"
+		}
+	}
+}

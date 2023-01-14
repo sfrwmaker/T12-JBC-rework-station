@@ -1,0 +1,108 @@
+{
+	"standalone": {
+		"OFF":							"Wył",
+		"ON":							"Wł",
+		"Fan:":							"Went.:",
+		"Pwr:":							"Pwr:",
+		"Ref. #":						"Ref. #",
+		"REED":							"REED",
+		"TILT":							"Wibr.",
+		"deg.":							"deg.",
+		"min":							"min",
+		"sec":							"sec",
+		"cw":							"w prawo",
+		"ccw":							"w lewo",
+		"Set:":							"Set:",
+		"ERROR":						"ERROR",
+		"Tune PID":						"Ustawienia PID",
+		"Select tip":					"Wybór grota",
+		"FLASH read error":				"Błąd odczytu pamięci",
+		"FLASH write erro":				"Błąd odczytu pamięci",
+		"No directory":					"Brak katalogu",
+		"format FLASH?":				"Formatować?",
+		"Failed to format FLASH": 		"Błąd formatowania",
+		"saving configuration":			"Zapisywanie konfiguracji",
+		"Hot Gun":						"Hot Gun",
+		"T12 iron":						"T12 iron",
+		"JBC iron":						"JBC iron",
+		"Save?":						"Zapisać?",
+		"Yes":							"Tak",
+		"No":							"Nie",
+		"Delete file?":					"Delete file?",
+		"FLASH debug":					"FLASH debug",
+		"Failed mount SD":				"Failed mount SD",
+		"NO config file":				"NO config file",
+		"No lang. specified":			"No lang. specified",
+		"No memory":					"No memory",
+		"Inconsistent lang":			"Inconsistent lang"
+	},
+	"Menu": {
+		"Main Menu": {
+			"Main Menu":				"Menu główne",
+			"parameters":				"Parametry",
+			"change T12 tip":			"Zmiana grota T12",
+			"activate tips":			"Aktywacja grota",
+			"T12 setup":				"Ustawienia T12",
+			"JBC setup":				"Ustawienia JBC",
+			"calibrate GUN":			"Ustawienia hot-air",
+			"reset config":				"Reset ustawień",
+			"about":					"Wersja oprogram.",
+			"quit":						"Wyjście"
+		},
+		"Parameters": {
+			"Parameters":				"Ustawieni",
+			"units":					"Stopnie",
+			"buzzer":					"Buzzer",
+			"upper encoder":			"upper encoder",
+			"lower encoder":			"lower encoder",
+			"temp. step":				"Skok temperatury",
+			"brightness":				"Jasność",
+			"rotation":					"rotation",
+			"language":					"Język",
+			"tune PID":					"tune PID",
+			"save":						"Zapisać",
+			"cancel":					"Anuluj"
+		},
+		"T12 iron setup": {
+			"T12 iron setup":			"T12 iron setup",
+			"switch type":				"Typ czujnika",
+			"auto start":				"auto start",
+			"auto off":					"Auto wył.",
+			"standby temp":				"Standby temp.",
+			"standby time":				"Czas oczekiwania",
+			"boost temp.":				"boost temp.",
+			"boost time":				"boost time",
+			"save":						"Zapisać",
+			"calibrate tip":			"calibrate tip",
+			"back to menu":				"Powrót do menu"
+		},
+		"JBC iron setup": {
+			"auto off":					"Auto wył.",
+			"standby temp.":			"Standby temp.",
+			"save":						"Zapisać",
+			"calibrate tip":			"calibrate tip",
+			"back to menu":				"Powrót do menu"
+		}
+		"Calibrate": {
+			"Calibrate":				"Kalibracja",
+			"automatic":				"Automatyczna",
+			"manual":					"Ręczna",
+			"clear":					"Wyczyścić",
+			"quit":						"Wyjście"
+		},
+		"Hot Air Gun": {
+			"Hot Air Gun":				"Hot Air",
+			"calibrate":				"Kalibracja",
+			"tune gun":					"Ustawienia Hot Air",
+			"tune gun PID":				"Ustawienia PID",
+			"clear":					"Wyczyścić",
+			"exit":						"Wyjście"
+		},
+		"Tune PID": {
+			"Tune PID":					"Tune PID",
+			"T12 PID":					"T12 PID",
+			"JBC PID":					"JBC PID",
+			"Gun PID":					"Gun PID"
+			
+	}
+}

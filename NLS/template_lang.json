@@ -1,0 +1,101 @@
+{
+	"standalone": {
+		"OFF":							"",
+		"ON":							"",
+		"Fan:":							":",
+		"Pwr:":							"",
+		"Ref. #":						"",
+		"REED":							"",
+		"TILT":							"",
+		"deg.":							"",
+		"min":							"",
+		"sec":							"",
+		"cw":							"",
+		"ccw":							"",
+		"Set:":							"",
+		"ERROR":						"",
+		"Tune PID":						"",
+		"Select tip":					"",
+		"FLASH read error":				"",
+		"FLASH write erro":				"",
+		"No directory":					"",
+		"format FLASH?":				"",
+		"Failed to format FLASH":		"",
+		"saving configuration":			"",
+		"Hot Gun":						"",
+		"T12 iron":						"",
+		"JBC iron":						"",
+		"Save?":						"",
+		"Yes":							"",
+		"No":							"",
+		"Delete file?":					"",
+		"FLASH debug":					"",
+		"Failed mount SD":				"",
+		"NO config file":				"",
+		"No lang. specified":			"",
+		"No memory":					"",
+		"Inconsistent lang":			""
+	},
+	"Menu": {
+		"Main Menu": {
+			"Main Menu":				"",
+			"parameters":				"",
+			"change T12 tip":			"",
+			"activate tips":			"",
+			"T12 setup":				"",
+			"JBC setup":				"",
+			"calibrate GUN":			"",
+			"reset config":				"",
+			"about":					"",
+			"quit":						""
+		},
+		"Parameters": {
+			"Parameters":				"",
+			"units":					"",
+			"buzzer":					"",
+			"upper encoder":			"",
+			"lower encoder":			"",
+			"temp. step":				"",
+			"brightness":				"",
+			"rotation":					"",
+			"language":					"",
+			"tune PID":					"",
+			"save":						"",
+			"cancel":					""
+		},
+		"T12 iron setup": {
+			"T12 iron setup":			"",
+			"switch type":				"",
+			"auto start":				"",
+			"auto off":					"",
+			"standby temp":				"",
+			"standby time":				"",
+			"boost temp.":				"",
+			"boost time":				"",
+			"save":						"",
+			"calibrate tip":			"",
+			"back to menu":				""
+		},
+		"JBC iron setup": {
+			"auto off":					"",
+			"standby temp.":			"",
+			"save":						"",
+			"calibrate tip":			"",
+			"back to menu":				""
+		}
+		"Calibrate": {
+			"Calibrate":				"",
+			"automatic":				"",
+			"manual":					"",
+			"clear":					"",
+			"quit":						""
+		},
+		"Tune PID": {
+			"Tune PID":					"",
+			"T12 PID":					"",
+			"JBC PID":					"",
+			"Gun PID":					""
+			"back to menu":				""
+		}
+	}
+}

@@ -1,0 +1,96 @@
+{
+	"standalone": {
+		"Fan:":							"VENT:",
+		"Pwr:":							"POT:",
+		"TILT":							"INCL.",
+		"deg.":							"grau",
+		"min":							"min.",
+		"sec":							"seg.",
+		"cw":							"horario",
+		"ccw":							"ant.horario",,
+		"ERROR":						"ERRO",
+		"Tune PID":						"ajuste PID",
+		"Select tip":					"Selecionar ponta",
+		"FLASH read error":				"Erro Ler Memoria",
+		"FLASH write erro":				"Erro Gravar Memoria",
+		"No directory":					"Diretorio Nao Existe",
+		"format FLASH?":				"Formatar FLASH?",
+		"Failed to format FLASH":		"Falha Formatar FLASH",
+		"saving configuration":			"Salvando Configuraçao",
+		"Hot Gun":						"Ar-Quente",
+		"T12 iron":						"T12 ponta",
+		"JBC iron":						"JBC ponta",
+		"Save?":						"Salvar?",
+		"Yes":							"Sim",
+		"No":							"Não",
+		"Delete file?":					"xcluir arquivo?",
+		"FLASH debug":					"Depuração FLASH",
+		"Failed mount SD":				"Falha na montagem do SD",
+		"NO config file":				"Sem arquivo de configuração",
+		"No lang. specified":			"Nenhum idioma especificado",
+		"No memory":					"Sem memória",
+		"Inconsistent lang":			"Idioma inconsistente"
+	},
+	"Menu": {
+		"Main Menu": {
+			"Main Menu":				"Menu Principal",
+			"parameters":				"Parametros",
+			"change T12 tip":			"Mudar Ponta T12",
+			"activate tips":			"Ativar Ponta",
+			"T12 setup":				"T12 setup",
+			"JBC setup":				"JBC setup",
+			"calibrate GUN":			"calibrate GUN",
+			"reset config":				"Anular Config.",
+			"about":					"Sobre",
+			"quit":						"Sair"
+		},
+		"Parameters": {
+			"Parameters":				"Parametros",
+			"units":					"Unidades",
+			"buzzer":					"Buzzer",
+			"upper encoder":			"upper encoder",
+			"lower encoder":			"lower encoder",
+			"temp. step":				"Incremento Temp",
+			"brightness":				"Brilho",
+			"rotation":					"rotação",
+			"language":					"Idioma",
+			"tune PID":					"PID Ferro",
+			"save":						"Salvar",
+			"cancel":					"Cancelar"
+		},
+		"T12 iron setup": {
+			"T12 iron setup":			"T12 iron setup",
+			"switch type":				"Tipo de Chave",
+			"auto start":				"Auto Iniciar",
+			"auto off":					"Auto Desligar",
+			"standby temp":				"Temp. de Esper",
+			"standby time":				"Tempo de Espera",
+			"boost temp.":				"boost temp.",
+			"boost time":				"boost time",
+			"save":						"Salvar",
+			"calibrate tip":			"Caibrar Ponta",
+			"back to menu":				"Voltar ao Menu"
+		},
+		"JBC iron setup": {
+			"auto off":					"Auto Desliga",
+			"standby temp.":			"Temp. de Esper",
+			"save":						"Salvar",
+			"calibrate tip":			"Caibrar Ponta",
+			"back to menu":				"Voltar ao Menu"
+		}
+		"Calibrate": {
+			"Calibrate":				"Calibrar",
+			"automatic":				"Automatico",
+			"manual":					"Manual",
+			"clear":					"Limpar",
+			"quit":						"Sair"
+		},
+		"Tune PID": {
+			"Tune PID":					"Ajustar PID",
+			"T12 PID":					"Ajustar PID T12",
+			"JBC PID":					"Ajustar PID JBC",
+			"Gun PID":					"Ajustar PID Ar-Quente"
+			"back to menu":				"Voltar ao Menu"
+		}
+	}
+}
