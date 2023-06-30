@@ -5,7 +5,9 @@
  *      Author: Alex
  *
  *  2022 DEC 23
- *      removed CFG::lowTempInternal() because sometimes the lowTemp can be greater than preset Temp
+ *   removed CFG::lowTempInternal() because sometimes the lowTemp can be greater than preset Temp
+ *  2023 MAR 01, v.1.01
+ *   Added no_lower_limit parameter to the CFG::humanToTemp() to correctly display the temperature in the low power mode
  *
  */
 
@@ -108,7 +110,7 @@ class CFG : public W25Q, public CFG_CORE, public TIP_CFG, public BUZZER {
 		CFG_STATUS	init(void);
 		bool		reloadTips(void);
 		uint16_t	tempToHuman(uint16_t temp, int16_t ambient, tDevice dev);
-		uint16_t	humanToTemp(uint16_t temp, int16_t ambient, tDevice dev);
+		uint16_t	humanToTemp(uint16_t temp, int16_t ambient, tDevice dev, bool no_lower_limit = false);
 		std::string tipName(tDevice dev);
 		void     	changeTip(uint8_t index);
 		uint8_t		currentTipIndex(tDevice dev);

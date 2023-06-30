@@ -1,8 +1,11 @@
 /*
  * display.h
  *
- * 2023 JAN 04
- *    Added new parameter, item status, to the DSPL::directoryShow() to show size of the current file
+ * 2023 JAN 04, v.1.01
+ *  Added new parameter, item status, to the DSPL::directoryShow() to show size of the current file
+ * 2023 MAR 01, v.1.01
+ *  Added 'pos' parameter to the timeToOff()
+ *  Changed dp_color to light blue
  */
 
 #ifndef DISPLAY_H_
@@ -70,7 +73,7 @@ class DSPL : public tft_ILI9341, public BRGT, public GRAPH, public NLS_MSG {
 		void 		msgIdle(tUnitPos pos);
 		void 		msgStandby(tUnitPos pos);
 		void 		msgBoost(tUnitPos pos);
-		void 		timeToOff(uint8_t time);
+		void 		timeToOff(tUnitPos pos, uint8_t time);
 		void 		animatePower(tUnitPos pos, int16_t t);
 		void		drawTipList(TIP_ITEM list[], uint8_t list_len, uint8_t index, bool name_only);
 		void		menuShow(t_msg_id menu_id, uint8_t item, const char* value, bool modify);
@@ -102,7 +105,7 @@ class DSPL : public tft_ILI9341, public BRGT, public GRAPH, public NLS_MSG {
 		uint16_t	bg_color			= 0;
 		uint16_t	fg_color			= 0xFFFF;
 		uint16_t	gd_color			= RED;				// Temperature gauge color
-		uint16_t	dp_color			= BLUE;				// Dispersion graph color
+		uint16_t	dp_color			= 0xFF;				// Dispersion graph color (BLUE)
 		uint16_t	pid_color			= YELLOW;			// Pid information color
 		uint16_t	dim_color			= LIGHTGREY;		// Not active item color
 		uint8_t		fan_angle			= 0;

@@ -1,6 +1,13 @@
 /*
  * gun.h
  *
+ * Released Jan 7 2023
+ *
+ * 2023 FEB 18, v.1.01
+ *  Added POWER_HEATING mode to prevent high temperature while heating-up
+ *  Added stable constant
+ *  Changed HOTGUN::isON() method
+ *
  */
 
 #ifndef GUN_H_
@@ -15,10 +22,10 @@ extern TIM_HandleTypeDef FAN_TIM;
 
 class HOTGUN : public UNIT {
     public:
-		typedef enum { POWER_OFF, POWER_ON, POWER_FIXED, POWER_COOLING, POWER_PID_TUNE } PowerMode;
+		typedef enum { POWER_OFF, POWER_HEATING, POWER_ON, POWER_FIXED, POWER_COOLING, POWER_PID_TUNE } PowerMode;
         HOTGUN(void) 		{ }
         void        		init(void);
-		virtual bool		isOn(void)						{ return (mode == POWER_ON || mode == POWER_FIXED); }
+		virtual bool		isOn(void)						{ return (mode == POWER_ON || mode == POWER_HEATING || mode == POWER_FIXED); }
 		virtual uint16_t	presetTemp(void)				{ return temp_set; 								}
 		uint16_t			presetFan(void)					{ return fan_speed;								}
 		virtual uint16_t 	averageTemp(void)				{ return avg_sync_temp; 						}
@@ -75,6 +82,7 @@ class HOTGUN : public UNIT {
 		const 		uint8_t		sw_avg_len		= 10;
 		const 		uint8_t		hot_gun_len		= 10;		// The history data length of Hot Air Gun average values
         const		uint32_t	relay_activate	= 1;		// The relay activation delay (loops of TIM1, 1 time per second)
+		const		int32_t		stable			= 300000;	// The power value when the Hot Gun reaches the preset temperature. Used in PID::pidStable()
 };
 
 #endif

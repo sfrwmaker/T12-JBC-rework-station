@@ -1,7 +1,15 @@
 /*
  * pid.h
  *
- *      Author: Alex
+ * Released Jan 7 2023
+ *
+ * 2023 FEB 18, v1.01
+ *  Added an argument to PWD::pidStable() method to use with IRON & Hot Air Gun differently
+ *  removed stable variable from the PID class
+ * 2023 FEB 19, v1.01
+ *  Introduced the heating-up PID parameters: Kp_force and Ki_force
+ *  Added use_force parameter, changed the PID::init() method to initialize the use_force parameter
+ *  Both irons are using the force heat-up PID parameters, the Hot Air Gun is not!
  */
 
 #ifndef _PID_H
@@ -35,12 +43,12 @@ class PID {
 		PID(void) 											{ }
 		void		load(const PIDparam &p);
 		PIDparam	dump(void)								{ return PIDparam(Kp, Ki, Kd);	}
-		void		init(uint16_t ms, uint8_t denominator_p = 11);
+		void		init(uint16_t ms, uint8_t denominator_p = 11, bool heat_force = true);
 		void 		resetPID(uint16_t t = 0);        					// reset PID algorithm history parameters
 		int32_t 	reqPower(int16_t temp_set, int16_t temp_curr);
 		int32_t  	changePID(uint8_t p, int32_t k);    	// set or get (if parameter < 0) PID parameter
 		void		newPIDparams(uint16_t delta_power, uint32_t diff, uint32_t period);
-		void		pidStable(void)							{ power = stable; }
+		void		pidStable(int32_t power)				{ this->power = power; }
 	private:
 		void  		debugPID(int t_set, int t_curr, long kp, long ki, long kd, long delta_p);
 		uint32_t 	T 							= 20;		// Check IRON or Hot Air Gun period, ms (to calculate auto PID parameters)
@@ -50,8 +58,10 @@ class PID {
 		int32_t  	Kp 				= 10;					// The PID coefficients multiplied by denominator.
 		int32_t     Ki 				= 10;
 		int32_t		Kd				= 0;
+		int32_t		Kp_force		= 10;
+		int32_t		Ki_force		= 5;
 		int16_t  	denominator_p	= 11;              		// The common coefficient denominator power of 2 (11 means 2048)
-		int32_t		stable			= 20000;				// The power value when the iron reaches the preset temperature
+		bool		use_force		= true;					// Flag indicating to use forcibly heating mode
 };
 
 class PIDTUNE {

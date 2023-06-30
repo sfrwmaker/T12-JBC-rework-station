@@ -49,7 +49,7 @@ class MWORK : public DASH {
 		bool			start			= true;				// Flag indicating the controller just started (used to turn the IRON on)
 		const uint16_t	period			= 500;				// Redraw display period (ms)
 		const uint16_t	tilt_show_time	= 1500;				// Time the tilt icon to be shown
-		const uint32_t	check_irons_to	= 5000;				// When to stop checking the current through the IRONs
+		const uint32_t	check_jbc_to	= 500;				// When start checking the current through the JBC
 		const uint16_t	edit_fan_timeout = 3000;			// The time to edit fan speed (ms)
 };
 

@@ -3,6 +3,12 @@
  *
  *  Created on: 03 june 2022.
  *      Author: Alex
+ *
+ * 2023 FEB 20 v.1.01
+ *  Introduced the minimum timeout before next call the read() method to ensure correct readings from the encoder
+ *  Added read_ms variable that keeps the time when the read() was called last time
+ *  and 'to' constant - minimum timeout before next encoder reading
+ *
  */
  
 #ifndef ENCODER_H_
@@ -43,6 +49,7 @@ class RENC {
 		GPIO_TypeDef* 		b_port	= 0;					// The PORT of the press button
 		uint16_t			b_pin	= 0;					// The PIN number of the button
 		int16_t				change	= 0;					// The encoder difference (set in the read() method
+		uint32_t			read_ms	= 0;					// Last time the read() function called
 		bool				clockwise		= true;			// How exactly the encoder soldered
         const uint8_t     	trigger_on		= 100;			// avg limit to change button status to on
         const uint8_t     	trigger_off 	= 50;			// avg limit to change button status to off
@@ -51,6 +58,7 @@ class RENC {
 		const uint16_t 		long_press		= 1500;			// If the button was pressed more that this timeout, we assume the long button press
 		const uint16_t		fast_timeout	= 300;			// Time in ms to change encoder quickly
 		const uint16_t		def_over_press	= 2500;			// Default value for button over press timeout (ms)
+		const uint8_t		to				= 50;			// Minimum timeout to call read()
 };
 
 #endif

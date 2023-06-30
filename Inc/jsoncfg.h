@@ -30,9 +30,6 @@ class FILE_PARSER: public JsonListener {
     	std::string				d_key;
     	std::stack<std::string>	s_array;
     	std::stack<std::string> s_key;						// Json structure stack
-//    	std::string				d_parent;
-//    	std::string				d_array;
-//    	std::stack<std::string> p_key;						// Json structure stack
 };
 
 //--------------------------------------------------- "cfg.json" main NLS configuration file parser -----------

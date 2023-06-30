@@ -1,7 +1,9 @@
 /*
  * dash.h
+ *  Author: Alex
  *
- *      Author: Alex
+ * 2023 MAR 01, v.1.01
+ *  Removed showOffTimeout()
  */
 
 #ifndef _DASH_H_
@@ -22,7 +24,6 @@ class DASH : public MODE {
 		void			drawStatus(tIronPhase t12_phase, tIronPhase jbc_phase, int16_t ambient);
 		void 			animateFan(void);
 		void			ironT12Used(bool active);
-		void 			showOffTimeout(uint32_t to);
 		bool			enableJBC(void);
 		bool			enableGUN(void);
 		bool			enableT12(void);
@@ -44,6 +45,7 @@ class DASH : public MODE {
 		tDevice			h_dev			= d_jbc;
 		bool			is_extra_tip	= false;			// Is the T12 tip index is the extra tip: Hakko 936 or Tweezers
 		bool			no_ambient		= false;			// Does the ambient sensor in the HAkko T12 iron handle is connected
+		bool			not_jbc			= false;			// The JBC iron is not connected flag: no current through the iron
 		bool			not_t12			= false;			// The T12 iron handle is not connected flag: not ambient sensor, no current through the iron and no extra tip
 		uint32_t		fan_animate		= 0;				// Time when draw new fan animation
 		bool			fan_blowing		= false;			// Used to draw grey or animated and colored fan
