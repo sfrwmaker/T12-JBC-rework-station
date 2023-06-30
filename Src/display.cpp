@@ -2,7 +2,9 @@
  * display.cpp
  *
  * 2023 JAN 04
- *    Added new parameter, status, to the DSPL::directoryShow() to show size of the current file
+ *  Added new parameter, status, to the DSPL::directoryShow() to show size of the current file
+ * 2023 MAR 01
+ *   Modified the DSPL::drawTipName() to correctly draw the tip name of the lowe unit
  */
 
 #include <string.h>
@@ -340,16 +342,18 @@ void DSPL::drawTipName(std::string tip_name, bool calibrated, tUnitPos pos) {
 	setFont(letter_font);
 	uint16_t h	= getMaxCharHeight();
 	uint16_t w	= getStrWidth(tip_name.c_str());
-	drawFilledRect(0, (pos == u_upper)?0:height()-h, tip_name_width, h, bg_color);
+	uint16_t y	= (pos == u_upper)?0:height()-h;			// Top position of the tip name string
+	drawFilledRect(0, y, tip_name_width, h, bg_color);
 	uint16_t x	= 0;
 	if (w < tip_name_width)
 		x = (tip_name_width - w) >> 1;
-	drawStr(x, (pos == u_upper)?h:height(), tip_name.c_str(), fg_color);
+	drawStr(x, y+h, tip_name.c_str(), fg_color);
 	if (!calibrated) {
-		drawIcon(x+w+10, h-14, 16, 14, bmNotCalibrated, 16, bg_color, fg_color);
+		drawIcon(x+w+10, y+h-14, 16, 14, bmNotCalibrated, 16, bg_color, fg_color);
 	}
 	uint16_t l_width = width()-20;
-	drawHLine(10, iron_area_top, l_width, fg_color);
+	if (pos == u_upper)
+		drawHLine(10, iron_area_top, l_width, fg_color);	// The horizontal line under the tip name
 }
 
 void DSPL::drawFanPcnt(uint8_t p, bool modify) {
@@ -469,6 +473,7 @@ void DSPL::statusIcon(const uint8_t* icon, uint16_t bg_color, uint16_t fg_color,
 	if (pos != u_upper && pos != u_lower) return;
 	uint16_t y  = (pos == u_upper)?0:gun_temp_y - 30;
 	drawIcon(width()-40, y, 28, 28, icon, 28, bg_color, fg_color);
+	drawFilledRect(width()-12, y, 12, 28, bg_color);		// Clear up the timeout area (see timeToOff())
 }
 
 void DSPL::msgOFF(tUnitPos pos) {
@@ -503,14 +508,17 @@ void DSPL::msgBoost(tUnitPos pos) {
 	statusIcon(bmBoost, bg_color, (uint16_t)RED, pos);
 }
 
-void DSPL::timeToOff(uint8_t time) {
-	static char msg[4];
-	sprintf(msg, "%2d", time);
-	setFont(letter_font);
-	uint16_t h	= getMaxCharHeight();
-	uint16_t w	= getStrWidth(msg);
-	drawFilledRect(tip_name_width, 0, width() - tip_name_width, h+7, bg_color);
-	drawStr(width() - w - 20, h, msg, fg_color);
+void DSPL::timeToOff(tUnitPos pos, uint8_t time) {
+	if (pos != u_upper && pos != u_lower) return;
+	uint16_t y  = (pos == u_upper)?0:gun_temp_y - 30;
+	uint16_t x = bm_preset.width();							// The bitmap area can be smaller than the status icon.
+	if (x < 40) x = 40;										// The status icon drawn in 40 pixels from the right screen border
+	x = width() - x;
+	drawValue(time, x, y, align_right, dp_color);
+	int16_t bm_h = bm_preset.height();
+	if (bm_h < 28) {							// The status icon is 28 pixels height
+		drawFilledRect(x, y+bm_h, bm_preset.width(), 28-bm_h, bg_color);
+	}
 }
 
 /*

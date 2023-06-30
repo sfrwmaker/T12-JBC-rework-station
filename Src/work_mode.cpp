@@ -10,6 +10,10 @@
  *      - the JBC iron is on-hook (see MWORK::manageHardwareSwitches())
  *      - the JBC iron is turned-off by timeout (see MWORK::jbcPhaseEnd())
  *      - the Hakko T12 iron is turned-off (see MWORK::t12PressShort() and MWORK::t12PhaseEnd())
+ *
+ * 2023 MAR 01, v1.01
+ *	Heavily revisited the code, many changes:
+ *  MWORK::init(), MWORK::loop(), MWORK::manageHardwareSwitches(), MWORK::manageEncoders(),
  */
 
 #include "work_mode.h"
@@ -22,12 +26,9 @@ void MWORK::init(void) {
 	CFG*	pCFG	= &pCore->cfg;
 	HOTGUN*	pHG		= &pCore->hotgun;
 
-	bool		celsius 	= pCFG->isCelsius();
 	ambient					= pCore->ambientTemp();
 	uint16_t 	fan			= pCFG->gunFanPreset();
 	pHG->setFan(fan);										// Setup the Hot Air Gun fan speed to be able to use the pHG->presetFanPcnt() (see below)
-	edit_temp		= true;
-	return_to_temp	= 0;
 	// Initialize devices with a preset temperature
 	uint16_t temp	= pCFG->tempPresetHuman(d_jbc);
 	uint16_t temp_i	= pCFG->humanToTemp(temp, ambient, d_jbc);
@@ -61,7 +62,6 @@ void MWORK::init(void) {
 	return_to_temp	= 0;
 	pD->clear();
 	initDevices(true, true);
-	pD->drawAmbient(ambient, celsius);
 	if (!not_t12)
 		pCore->t12.setCheckPeriod(6);						// Start checking the current through T12 IRON
 }
@@ -80,9 +80,13 @@ MODE* MWORK::loop(void) {
 		return mode_spress;
 	}
 
-	if (manageEncoders()) return mode_lpress;
-
-	animateFan();
+	if (manageEncoders()) {									// Lewer encoder long pressed
+		if (mode_lpress) {									// Go to the main menu
+			pCore->buzz.shortBeep();
+			return mode_lpress;
+		}
+	}
+	animateFan();											// Draw the fan animated icon. The color depends on the Gun temperature
 
     if (HAL_GetTick() < update_screen) return this;
     update_screen = HAL_GetTick() + period;
@@ -95,14 +99,14 @@ MODE* MWORK::loop(void) {
 	}
 
     // Check the T12 IRON handle connectivity
-	if (no_ambient) {
-		if (!pCore->noAmbientSensor()) {
+	if (no_ambient) {										// The T12 handle was disconnected
+		if (!pCore->noAmbientSensor()) {					// The T12 handle attached again
 			no_ambient = false;
 			pT12->setCheckPeriod(6);						// Start checking the current through the T12 IRON
 			disableJBC();
 		}
-	} else {
-		if (pCore->noAmbientSensor()) { 					// The T12 handle lost
+	} else {												// The T12 handle attached
+		if (pCore->noAmbientSensor()) { 					// The T12 handle disconnected
 			no_ambient = true;
 			pT12->setCheckPeriod(0);						// Stop checking the current through the T12 IRON
 			if (!is_extra_tip)
@@ -112,7 +116,7 @@ MODE* MWORK::loop(void) {
 
 	// if T12 IRON tip is disconnected, activate Tip selection mode
 	if (mode_spress && !no_ambient && !pT12->isConnected() && isACsine()) {
-		if (isIronCold(t12_phase)) {
+		if (isIronCold(t12_phase)) {						// The T12 IRON is not active
 			mode_spress->useDevice(d_t12);
 			return mode_spress;
 		}
@@ -129,11 +133,17 @@ MODE* MWORK::loop(void) {
 	if (t12_phase != IRPH_OFF && HAL_GetTick() > tilt_time) { // Time to redraw tilt switch status
 		if (t12IdleMode()) {								// tilt switch is active
 			tilt_time = HAL_GetTick() + tilt_show_time;
-			ironT12Used(true);								// draw Iron Used icon
+			ironT12Used(true);								// draw the 'iron used' icon
 		} else if (tilt_time > 0) {
 			tilt_time = 0;
-			ironT12Used(false);								// clear Iron Used icon
+			ironT12Used(false);								// clear the 'iron used' icon
 		}
+	}
+
+	if (t12_phase == IRPH_LOWPWR && pCore->cfg.getLowTemp(d_t12) > 0) {
+		uint32_t to = (t12_phase_end - HAL_GetTick()) / 1000;
+		if (to < 100)
+			pCore->dspl.timeToOff(devPos(d_t12), to);
 	}
 
 	if (jbc_phase == IRPH_COOLING && pJBC->isCold()) {
@@ -143,12 +153,25 @@ MODE* MWORK::loop(void) {
 		ironPhase(d_jbc, jbc_phase);
 	}
 
-	if (jbc_phase == IRPH_HEATING)
-		jbcReadyMode();										// Check the JBC IRON reaches the preset temperature
+	if (jbc_phase == IRPH_HEATING) {
+		if (check_jbc_tm && HAL_GetTick() >= check_jbc_tm) {
+			check_jbc_tm = 0;
+			not_jbc = !pCore->jbc.isConnected();
+			if (not_jbc) {
+				pCore->jbc.switchPower(false);
+				jbc_phase = IRPH_COOLING;
+				ironPhase(d_jbc, jbc_phase);
+				disableJBC();
+			}
+		} else {
+			jbcReadyMode();									// Check the JBC IRON reaches the preset temperature
+		}
+	}
 
-	if (t12_phase == IRPH_LOWPWR && pCore->cfg.getLowTemp(d_t12) > 0) {
-		uint32_t to = (t12_phase_end - HAL_GetTick()) / 1000;
-		showOffTimeout(to);
+	if (jbc_phase == IRPH_LOWPWR && pCore->cfg.getLowTemp(d_jbc) > 0) {
+		uint32_t to = (jbc_phase_end - HAL_GetTick()) / 1000;
+		if (to < 100)
+			pCore->dspl.timeToOff(devPos(d_jbc), to);
 	}
 
 	adjustPresetTemp();
@@ -195,29 +218,31 @@ void MWORK::manageHardwareSwitches(CFG* pCFG, IRON *pT12, IRON *pJBC, HOTGUN *pH
 	// Manage JBC IRON
 	bool jbc_offhook = pJBC->isReedSwitch(true);			// The JBC IRON is off-hook
 	if (jbc_offhook) {										// The JBC IRON is off-hook, try to activate JBC IRON
-		if (enableJBC()) {									// The dashboard mode changed
-			check_jbc_tm = HAL_GetTick() + check_irons_to;	// Do not check the JBC IRON connectivity till this timeout
-			if (t12_phase == IRPH_NORMAL) {					// Force to re-establish the temperature of complementary device
-				t12_phase = IRPH_HEATING;
-				ironPhase(d_t12, t12_phase);
+		if (!not_jbc) {										// Do not try to switch JBC iron on if it is not connected
+			if (enableJBC()) {								// The dashboard mode changed
+				check_jbc_tm = HAL_GetTick() + check_jbc_to; // Do not check the JBC IRON connectivity till this timeout
+				if (t12_phase == IRPH_NORMAL) {				// Force to re-establish the temperature of complementary device
+					t12_phase = IRPH_HEATING;
+					ironPhase(d_t12, t12_phase);
+				}
+			}
+			uint16_t temp	= pCore->cfg.tempPresetHuman(d_jbc);
+			if (!pJBC->isOn()) {							// The JBC IRON is not powered on, setup the preset temperature
+				uint16_t temp_i = pCore->cfg.humanToTemp(temp, ambient, d_jbc);
+				pCore->jbc.setTemp(temp_i);
+				pJBC->switchPower(true);
+				jbc_phase = IRPH_HEATING;
+				ironPhase(d_jbc, jbc_phase);
+				update_screen	= 0;
+			} else if (jbc_phase == IRPH_LOWPWR) {			// The JBC IRON was on but in low power mode
+				pJBC->switchPower(true);
+				presetTemp(d_jbc, temp);					// Update the preset temperature
+				jbc_phase = IRPH_HEATING;
+				ironPhase(d_jbc, jbc_phase);
+				update_screen	= 0;
 			}
 		}
-		uint16_t temp	= pCore->cfg.tempPresetHuman(d_jbc);
-		if (!pJBC->isOn()) {								// The JBC IRON is not powered on, setup the preset temperature
-			uint16_t temp_i = pCore->cfg.humanToTemp(temp, ambient, d_jbc);
-			pCore->jbc.setTemp(temp_i);
-			pJBC->switchPower(true);
-			jbc_phase = IRPH_HEATING;
-			ironPhase(d_jbc, jbc_phase);
-			update_screen	= 0;
-		} else if (jbc_phase == IRPH_LOWPWR) {				// The JBC IRON was on but in low power mode
-			pJBC->switchPower(true);
-			presetTemp(d_jbc, temp);						// Update the preset temperature
-			jbc_phase = IRPH_HEATING;
-			ironPhase(d_t12, t12_phase);
-			update_screen	= 0;
-		}
-	} else {												// The JBC IRON is on-hook
+	} else {												// The JBC IRON is on-hook, try to switch it OFF or go into low power mode
 		if (pJBC->isOn() && isIronWorking(jbc_phase)) {
 			uint8_t off_timeout = pCFG->getOffTimeout(d_jbc);
 			if (off_timeout) { 								// Put the JBC IRON to the low power mode
@@ -225,7 +250,7 @@ void MWORK::manageHardwareSwitches(CFG* pCFG, IRON *pT12, IRON *pJBC, HOTGUN *pH
 				int16_t temp	= pCore->cfg.tempPresetHuman(d_jbc);
 				if (l_temp >= temp)
 					l_temp = temp - 10;
-				temp = pCore->cfg.humanToTemp(l_temp, ambient, d_jbc);
+				temp = pCore->cfg.humanToTemp(l_temp, ambient, d_jbc, true);
 				pJBC->lowPowerMode(temp);
 				jbc_phase_end = HAL_GetTick() + off_timeout * 60000;
 				jbc_phase = IRPH_LOWPWR;
@@ -240,6 +265,7 @@ void MWORK::manageHardwareSwitches(CFG* pCFG, IRON *pT12, IRON *pJBC, HOTGUN *pH
 			pCFG->saveConfig();								// Save configuration when the JBC IRON is turned-off
 			update_screen	= 0;
 		}
+		not_jbc = false;									// Re-enable JBC iron
 	}
 }
 
@@ -289,7 +315,7 @@ void MWORK::swTimeout(uint16_t temp, uint16_t temp_set, uint16_t temp_setH, uint
 			swoff_time 	= HAL_GetTick() + pCFG->getOffTimeout(d_t12) * 60000;
 		uint32_t to = (swoff_time - HAL_GetTick()) / 1000;
 		if (to < 100) {
-			showOffTimeout(to);
+			pCore->dspl.timeToOff(devPos(d_t12), to);
 		} else {
 			ironPhase(d_t12, IRPH_GOINGOFF);
 		}
@@ -380,12 +406,12 @@ bool MWORK::t12IdleMode(void) {
 	// If the low power mode is enabled, check the IRON status
 	if (t12_phase == IRPH_NORMAL) {							// The IRON has reaches the preset temperature and 'Ready' message is already cleared
 		if (low_power_enabled) {							// Use hardware tilt switch if low power mode enabled
-			if (hwTimeout(tilt_active)) {
+			if (hwTimeout(tilt_active)) {					// Time to activate low power mode
 				uint16_t l_temp	= pCore->cfg.getLowTemp(d_t12);
 				int16_t temp	= pCore->cfg.tempPresetHuman(d_t12);
 				if (l_temp >= temp)
 					l_temp = temp - 10;
-				temp = pCore->cfg.humanToTemp(l_temp, ambient, d_t12);
+				temp = pCore->cfg.humanToTemp(l_temp, ambient, d_t12, true);
 				pCore->t12.lowPowerMode(temp);
 				t12_phase 		= IRPH_LOWPWR;				// Switch to low power mode
 				ironPhase(d_t12, t12_phase);
@@ -420,16 +446,15 @@ void MWORK::jbcReadyMode(void) {
 		jbc_phase_end 	= HAL_GetTick() + 2000;
 		pCore->buzz.shortBeep();
 		ironPhase(d_jbc, jbc_phase);
-
 	}
 }
 
 bool MWORK::manageEncoders(void) {
-	HOTGUN 	*pHG	= &pCore->hotgun;
-	CFG		*pCFG	= &pCore->cfg;
+	HOTGUN 	*pHG		= &pCore->hotgun;
+	CFG		*pCFG		= &pCore->cfg;
+
 	uint16_t temp_set_h = pCore->u_enc.read();
     uint8_t  button		= pCore->u_enc.buttonStatus();
-
     if (button == 1) {										// The upper encoder button pressed shortly, change the working mode
     	if (u_dev == d_t12) {
     		t12PressShort();
@@ -448,14 +473,14 @@ bool MWORK::manageEncoders(void) {
 
     if (pCore->u_enc.changed()) {							// The IRON preset temperature changed
     	if (u_dev == d_t12) {
-        	if (t12Rotate(temp_set_h)) {
+        	if (t12Rotate(temp_set_h)) {					// The t12 preset temperature has been changed
         		// Update the preset temperature in memory only. To save config to the flash, use saveConfig()
 				pCFG->savePresetTempHuman(temp_set_h, d_t12);
 				idle_pwr.reset();
 				presetTemp(u_dev, temp_set_h);
 			}
     	} else {
-    		if (jbcRotate(temp_set_h)) {
+    		if (jbcRotate(temp_set_h)) {					// The jbc preset temperature has been changed
     			// Update the preset temperature in memory only. To save config to the flash, use saveConfig()
     			pCFG->savePresetTempHuman(temp_set_h, d_jbc);
     			presetTemp(u_dev, temp_set_h);
@@ -486,20 +511,13 @@ bool MWORK::manageEncoders(void) {
 				return false;
 			}
 		}
-	} else if (button == 2) {								// No BOOST mode in this case
-		if (l_dev == d_t12 && pCore->t12.isOn()) {			// Low device is T12 and it is powered on, activate boost mode
-			t12PressLong();
-			update_screen = 0;
-			lowpower_time = 0;
-		} else if (mode_lpress) {							// Go to the main menu
-			pCore->buzz.shortBeep();
-			return true;									// Exit from the working mode
-		}
+	} else if (button == 2) {								// No BOOST mode for T12 in this case, Go to the main menu
+		return true; 
 	}
 
     if (pCore->l_enc.changed()) {
     	if (l_dev == d_t12) {
-        	if (t12Rotate(temp_set_h)) {
+        	if (t12Rotate(temp_set_h)) {					// The t12 preset temperature has been changed
 				pCFG->savePresetTempHuman(temp_set_h, d_t12);
 				presetTemp(l_dev, temp_set_h);
 				idle_pwr.reset();

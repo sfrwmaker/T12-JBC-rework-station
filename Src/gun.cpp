@@ -1,6 +1,15 @@
 /*
  * gun.cpp
  *
+ * Released Jan 7 2023
+ *
+ * 2023 FEB 18, v.1.01
+ * 	Added POWER_HEATING mode to prevent high temperature while heating-up
+ *	Changed the HOTGUN::switchPower(), HOTGUN::power() methods.
+ *	Limited the relay_ready_cnt value by 7
+ * 2023 FEB 19, v1.01
+ *  changed PID::init() call in HOTGUN::init(). The Hot Air Gun does not use the aggressive PID parameters when heat-up.
+ *
  */
 
 #include "gun.h"
@@ -18,7 +27,7 @@ void HOTGUN::init(void) {
 	h_temp.reset();
 	d_power.length(ec);
 	d_temp.length(ec);
-	PID::init(1000, 13);									// Initialize PID for Hot Air Gun, 1Hz
+	PID::init(1000, 13, false);								// Initialize PID for Hot Air Gun, 1Hz. Do not forcible heat!
     resetPID();
 }
 
@@ -66,13 +75,18 @@ void HOTGUN::switchPower(bool On) {
 			if (fanSpeed() == 0) {							// No power supplied to the Fan
 				if (On)	{									// !FAN && On
 					safetyRelay(true);						// Supply AC power to the hot air gun socket
-					mode = POWER_ON;
+					mode = POWER_HEATING;
 				}
 			} else {
 				if (On) {
 					if (isConnected()) {					// FAN && On && connected
 						safetyRelay(true);
-						mode = POWER_ON;
+						uint16_t t = h_temp.read();
+						if (t < temp_set && t + 200 < temp_set) {
+							mode = POWER_HEATING;
+						} else {
+							mode = POWER_ON;
+						}
 					} else {								// FAN && On && !connected
 						shutdown();
 					}
@@ -90,6 +104,7 @@ void HOTGUN::switchPower(bool On) {
 			}
 			break;
 		case POWER_ON:
+		case POWER_HEATING:
 		case POWER_PID_TUNE:
 			if (!On) {										// Start cooling the hot air gun
 				mode = POWER_COOLING;
@@ -123,7 +138,12 @@ void HOTGUN::switchPower(bool On) {
 				if (On) {									// FAN && On
 					if (isConnected()) {					// FAN && On && connected
 						safetyRelay(true);					// Supply AC power to the hot air gun socket
-						mode = POWER_ON;
+						uint16_t t = h_temp.read();
+						if (t < temp_set && t + 200 < temp_set) {
+							mode = POWER_HEATING;
+						} else {
+							mode = POWER_ON;
+						}
 					} else {								// FAN && On && !connected
 						shutdown();
 					}
@@ -140,7 +160,7 @@ void HOTGUN::switchPower(bool On) {
 			} else {
 				if (On) {									// !FAN && On
 					safetyRelay(true);						// Supply AC power to the hot air gun socket
-					mode = POWER_ON;
+					mode = POWER_HEATING;
 				}
 			}
 			break;
@@ -184,6 +204,7 @@ uint16_t HOTGUN::power(void) {
 	switch (mode) {
 		case POWER_OFF:
 			break;
+		case POWER_HEATING:
 		case POWER_ON:
 			FAN_TIM.Instance->CCR1	= fan_speed;
 			if (chill) {
@@ -194,8 +215,13 @@ uint16_t HOTGUN::power(void) {
 					break;
 				}
 			}
+			if (mode == POWER_HEATING && t >= temp_set + 20) {
+				mode = POWER_ON;
+				PID::pidStable(stable);
+			}
 			if (relay_ready_cnt > 0) {						// Relay is not ready yet
 				--relay_ready_cnt;							// Do not apply power to the HOT GUN till AC relay is ready
+				relay_ready_cnt &= 7;
 			} else {
 				p = PID::reqPower(temp_set, t);
 				p = constrain(p, 0, max_power);

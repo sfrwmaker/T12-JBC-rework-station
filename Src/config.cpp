@@ -5,8 +5,10 @@
  *      Author: Alex
  *
  *  2022 DEC 16
- *  	Modified the nearActiveTip routine to find the tip of the specified device type: T12, JBC or 'Extra tip'
- *      Changed CFG::init(); the default t12 tip changed from 0 to 1
+ *   Modified the nearActiveTip routine to find the tip of the specified device type: T12, JBC or 'Extra tip'
+ *   Changed CFG::init(); the default t12 tip changed from 0 to 1
+ *  2023 MAR 01, v.1.01
+ *   Added no_lower_limit parameter to the CFG::humanToTemp() to correctly display the temperature in the low power mode
  */
 
 #include <stdlib.h>
@@ -193,12 +195,13 @@ uint16_t CFG::tempToHuman(uint16_t temp, int16_t ambient, tDevice dev) {
 }
 
 // Translate the temperature from human readable units (Celsius or Fahrenheit) to the internal units
-uint16_t CFG::humanToTemp(uint16_t t, int16_t ambient, tDevice dev) {
+uint16_t CFG::humanToTemp(uint16_t t, int16_t ambient, tDevice dev, bool no_lower_limit) {
 	int d = ambient - TIP_CFG::ambientTemp(dev);
 	uint16_t t200	= referenceTemp(0, dev) + d;
 	uint16_t t400	= referenceTemp(3, dev) + d;
 	uint16_t tmin	= tempMinC(dev);
 	uint16_t tmax	= tempMaxC(dev);
+	if (no_lower_limit) tmin = 100;
 	if (!CFG_CORE::isCelsius()) {
 		t200 = celsiusToFahrenheit(t200);
 		t400 = celsiusToFahrenheit(t400);

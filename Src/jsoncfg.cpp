@@ -7,39 +7,6 @@
 #include "vars.h"
 
 //--------------------------------------------------- Configuration file parser -------------------------------
-/*
-void FILE_PARSER::startDocument() {
-	while (!p_key.empty() ) {
-		p_key.pop();
-	}
-	d_key = d_parent = "";
-}
-
-void FILE_PARSER::startObject() {
-	p_key.push(d_parent);
-	d_parent = d_key;
-}
-
-void FILE_PARSER::endObject() {
-	d_parent = p_key.top();
-	p_key.pop();
-	d_key.clear();
-}
-
-void FILE_PARSER::startArray() {
-	p_key.push(d_parent);
-	d_parent = d_key;
-	d_array	 = d_key;
-}
-
-void FILE_PARSER::endArray() {
-	d_parent = p_key.top();
-	p_key.pop();
-	d_key.clear();
-	d_array	= d_parent;
-}
-*/
-
 void FILE_PARSER::startDocument() {
 	while (!s_key.empty() ) {
 		s_key.pop();

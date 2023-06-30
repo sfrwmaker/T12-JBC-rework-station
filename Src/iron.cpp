@@ -1,6 +1,12 @@
 /*
  * iron.cpp
  *
+ * 2023 FEB 18, v1.01
+ *  Added stable constant that describes the power in stable mode. See POWER_HEATING case in IRON::power()
+ * 2023 FEB 19, v1.01
+ *  Changed PID::init() call in IRON::init(). Both irons do use the aggressive PID parameters when heat-up.
+ * 2023 MAR 01, v1.01
+ *  Changed IRON::lowPowerMode() switch mode to the POWER_ON in case low power mode activation
  */
 
 #include "iron.h"
@@ -27,7 +33,7 @@ void IRON::init(tDevice dev_type, uint16_t temp) {
 	uint32_t cpu_speed = SystemCoreClock / 1000;			// Calculate TIM5 period in ms
 	tim5_period /= cpu_speed;
 	tim5_period <<= 1;										// Double period because the IRONS are checking consequently (see core.cpp)
-	PID::init(tim5_period, 11);								// Initialize PID for JBC or T12 IRON. 20 ms -> 50 Hz
+	PID::init(tim5_period, 11, true);						// Initialize PID for JBC or T12 IRON.
 	resetPID();
 }
 
@@ -146,7 +152,7 @@ uint16_t IRON::power(int32_t t) {
 		case POWER_HEATING:
 			if (t >= temp_set + 20) {
 				mode = POWER_ON;
-				PID::pidStable();
+				PID::pidStable(stable);
 			}
 			p = PID::reqPower(temp_set, t);
 			p = constrain(p, 0, max_power);
@@ -218,11 +224,12 @@ void IRON::reset(void) {
 
 
 void IRON::lowPowerMode(uint16_t t) {
-    if (mode == POWER_ON && t < temp_set) {
+    if ((mode == POWER_ON || mode == POWER_HEATING) && t < temp_set) {
         temp_low = t;                           			// Activate low power mode
         chill = true;										// Stop heating, when temp reaches standby one, reset PID
     	h_power.reset();
     	d_power.reset();
+    	mode = POWER_ON;
     }
 }
 

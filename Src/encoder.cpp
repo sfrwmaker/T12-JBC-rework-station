@@ -3,6 +3,11 @@
  *
  *  Created on: 03 june 2022.
  *      Author: Alex
+ *
+ * 2023 FEB 20  v.1.01
+ *  Changed RENC::read() method to prevent calling it too often.
+ * 2023 MAR 01, v1.01
+ *	Heavily revisited the code, many changes
  */
 
 #include "encoder.h"
@@ -29,9 +34,14 @@ void RENC::reset(int16_t initPos, int16_t low, int16_t upp, uint8_t inc, uint8_t
 	increment = fast_increment = inc;
 	if (fast_inc > increment) fast_increment = fast_inc;
 	is_looped = looped;
+	change = 0;
 }
 
 int16_t	RENC::read(void) {
+	uint32_t n = HAL_GetTick();
+	if (read_ms + to > n)
+		return pos;
+	read_ms = n;
 	uint16_t c	= __HAL_TIM_GET_COUNTER(htim);
 	uint16_t diff = 0;
 	bool turn_clockwise = false;

@@ -1,8 +1,10 @@
 /*
  * mode.cpp
  *
- * Dec 20 2022
- *     Added restore_power_ms to the MCALIB_MANUAL::loop() method to stop powering the iron when you try to decrease the preset temperature
+ * 2022 DEC 20 v.1.00
+ *  Added restore_power_ms to the MCALIB_MANUAL::loop() method to stop powering the iron when you try to decrease the preset temperature
+ * 2023 FEB 20 v.1.01
+ *  Modified the MCALIB_MANUAL::loop(). Changed the encoder small and big step to simplify adjustment of the reference point temperature.
  *
  */
 
@@ -642,8 +644,8 @@ MODE* MCALIB_MANUAL::loop(void) {
 		    pEnc->reset(encoder, 0, 3, 1, 1, true);				// Turn back to the reference temperature point selection mode
 		} else {												// Reference temperature index was selected from the list
 			tuning 			= true;
-			uint16_t temp 	= calib_temp[encoder];
-			pEnc->reset(temp, 100, int_temp_max, 1, 5, false); // int_temp_max declared in vars.cpp
+			uint16_t temp 	= calib_temp[encoder];				// The reference temperature
+			pEnc->reset(temp, 100, int_temp_max, (temp>1500)?5:1, 50, false); // int_temp_max declared in the vars.cpp
 			pUnit->setTemp(temp);
 			pUnit->switchPower(true);
 			temp_setready_ms = HAL_GetTick() + 10000;

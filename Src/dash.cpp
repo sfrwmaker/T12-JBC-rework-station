@@ -1,7 +1,9 @@
 /*
  * dash.cpp
+ *   Author: Alex
  *
- *      Author: Alex
+ * 2023 MAR 01, v1.01
+ *	Modified the DASH::drawStatus(), DASH::showOffTimeout(), DASH::initEncoders()
  */
 
 #include "dash.h"
@@ -14,6 +16,7 @@ void DASH::init(void) {
 	is_extra_tip	= pCore->cfg.isExtraTip();
 	no_ambient		= pCore->noAmbientSensor();
 	not_t12 		= no_ambient && !pCore->t12.isConnected() && !is_extra_tip;
+	not_jbc			= false;
 	if (not_t12) {
 		u_dev	= d_jbc;
 		l_dev	= d_gun;
@@ -53,14 +56,14 @@ void DASH::drawStatus(tIronPhase t12_phase, tIronPhase jbc_phase, int16_t ambien
 	bool celsius = pCFG->isCelsius();
 
 	// Draw status of upper device
-	bool no_t12 = u_dev == d_t12 && no_ambient && !is_extra_tip;
+	bool no_iron = (u_dev == d_t12)?not_t12:not_jbc;
 	bool iron_on = (u_phase != IRPH_OFF && u_phase != IRPH_COLD);
 	pD->drawTempGauge(u_temp_h-u_temp_s, u_upper, iron_on);
 	pD->drawPower(u_pwr, u_upper);
-
+	// Show the IRON temperature 
 	if (u_phase == IRPH_HEATING) {
 		pD->animatePower(u_upper, u_temp_h - u_temp_s);		// Draw colored power icon
-	} else if (no_t12 || u_phase == IRPH_OFF) {				// Prevent the temperature changing when the IRON or Hot Gun is off
+	} else if (no_iron || u_phase == IRPH_OFF) {			// Prevent the temperature changing when the IRON is OFF
 		u_temp_h = ambient;
 	}
 	if (u_phase == IRPH_COOLING) {
@@ -68,18 +71,26 @@ void DASH::drawStatus(tIronPhase t12_phase, tIronPhase jbc_phase, int16_t ambien
 	} else {
 		pD->drawTemp(u_temp_h, u_upper);
 	}
-	if (u_phase == IRPH_BOOST || u_phase == IRPH_LOWPWR) {
+	// Correct the preset tempeature depending on current IRON mode
+	if (u_phase == IRPH_LOWPWR) {
 		uint16_t l_temp	= pCore->cfg.getLowTemp(u_dev);
 		if (l_temp > 0)
 			u_temp_s = l_temp;
+	} else if (u_dev == d_t12 && u_phase == IRPH_BOOST) {
+		uint8_t  bt		= pCore->cfg.boostTemp();			// Additional temperature (Degree)
+		if (!pCore->cfg.isCelsius())
+			bt = (bt * 9 + 3) / 5;
+		uint16_t tset = pCore->t12.presetTemp();			// Current preset temperature, internal units
+		u_temp_s = pCore->cfg.tempToHuman(tset, ambient, d_t12) + bt;
 	}
 
-	// Draw status of lower device
-	no_t12 = l_dev == d_t12 && no_ambient && !is_extra_tip;
-	if (l_dev != d_gun) {
+	// Draw the status of the lower device
+	no_iron = (l_dev == d_t12) && not_t12;
+	iron_on = (l_phase != IRPH_OFF && l_phase != IRPH_COLD);
+	if (l_dev == d_t12) {
 		if (l_phase == IRPH_HEATING) {
 			pD->animatePower(u_lower, l_temp_h - l_temp_s);
-		} else if (no_t12 || l_phase == IRPH_OFF) {			// Prevent the temperature changing when the IRON or Hot Gun is off and cold
+		} else if (no_iron || l_phase == IRPH_OFF) {			// Prevent the temperature changing when the IRON or Hot Gun is off and cold
 			l_temp_h = ambient;
 		}
 
@@ -88,15 +99,14 @@ void DASH::drawStatus(tIronPhase t12_phase, tIronPhase jbc_phase, int16_t ambien
 		} else {
 			pD->drawTemp(l_temp_h, u_lower);
 		}
-		if (l_dev == d_t12 && (u_phase == IRPH_BOOST || u_phase == IRPH_LOWPWR)) {
+		if (u_phase == IRPH_LOWPWR) {
 			uint16_t l_temp	= pCore->cfg.getLowTemp(l_dev);
 			if (l_temp > 0)
 				u_temp_s = l_temp;
 		}
-		iron_on = (l_phase != IRPH_OFF && l_phase != IRPH_COLD);
 		pD->drawTempGauge(l_temp_h-l_temp_s, u_lower, iron_on);
 		pD->drawPower(l_pwr, u_lower);
-	} else {
+	} else {													// The lower device is the Hot Air Gun
 		if (!pCore->hotgun.isFanWorking()) {
 			if (fan_blowing) {
 				pD->stopFan();
@@ -120,23 +130,22 @@ void DASH::drawStatus(tIronPhase t12_phase, tIronPhase jbc_phase, int16_t ambien
 		pD->drawPower(l_pwr, u_lower);
 	}
 
-	// Show the temperature of alternative device (if it is hot)
+	// Show the temperature of the alternative device (if it is hot)
 	if (h_dev == d_unknown) {
-		pD->drawAlternate(0, false, h_dev);				// Clear area
+		pD->drawAlternate(0, false, h_dev);				// Clear the area
 		return;
 	}
 
 	tIronPhase	h_phase	= t12_phase;
 	UNIT*	pHU			= (UNIT*)&pCore->t12;
+	bool h_dev_active 	= !pCore->t12.isCold();
 	if (h_dev == d_jbc) {
-		pHU = &pCore->jbc;
+		pHU	= &pCore->jbc;
 		h_phase = jbc_phase;
+		h_dev_active = !pCore->jbc.isCold();
 	} else if (h_dev == d_gun){
 		pHU = &pCore->hotgun;
 		h_phase = pHU->isOn()?IRPH_NORMAL:IRPH_COOLING;
-	}
-	bool h_dev_active = !pHU->isCold();
-	if (h_dev == d_gun) {
 		h_dev_active = pCore->hotgun.isFanWorking();
 	}
 	if (h_dev_active) {
@@ -163,15 +172,6 @@ void DASH::ironT12Used(bool active) {
 	pCore->dspl.ironActive(active, pos);
 }
 
-// Perhaps, we should show time to shutdown
-void DASH::showOffTimeout(uint32_t to) {
-	if (u_dev == d_t12) {
-		if (to < 100) {
-			pCore->dspl.timeToOff(to);						// Show the time remaining to switch off the IRON
-		}
-	}
-}
-
 bool DASH::enableJBC(void) {
 	if (u_dev != d_jbc) {									// T12_GUN mode
 		if (not_t12 || pCore->hotgun.isOn())
@@ -185,9 +185,9 @@ bool DASH::enableJBC(void) {
 bool DASH::disableJBC(void) {
 	if (u_dev == d_jbc) {									// JBC deactivated
 		if (l_dev == d_gun) {								// JBC_GUN mode
-			if (not_t12)									// T12 is connected
+			if (not_t12)									// T12 is not connected
 				return false;
-		} else if (pCore->hotgun.isCold()) {				// JBC_T12 mode, no mode change
+		} else if (!not_jbc && pCore->hotgun.isCold()) {	// JBC_T12 mode, no mode change
 			return false;
 		}
 		return setMode(DM_T12_GUN);							// Change upper device from JBC to T12
@@ -295,10 +295,10 @@ bool DASH::initDevices(bool init_upper, bool init_lower) {
 				pD->msgON(u_lower);
 			else
 				pD->msgOFF(u_lower);
-		} else {
+		} else {											// l_dev is d_t12
 			pD->drawTipName(pCFG->tipName(l_dev), pCFG->isTipCalibrated(l_dev), u_lower);
 			pD->noFan();
-			bool no_t12 = u_dev == d_t12 && no_ambient && !is_extra_tip;
+			bool no_t12 = no_ambient && !is_extra_tip;
 			if (no_t12 || t12_phase == IRPH_OFF || t12_phase == IRPH_COOLING) {
 				pD->msgOFF(u_lower);
 			} else if (t12_phase == IRPH_LOWPWR) {
@@ -339,9 +339,6 @@ void DASH::initEncoders(tDevice u_dev, tDevice l_dev, int16_t u_value, uint16_t 
 		pCore->u_enc.reset(u_value, it_min, it_max, temp_step, temp_step, false);
 	if (l_value)
 		pCore->l_enc.reset(l_value, (l_dev == d_gun)?gt_min:it_min, (l_dev == d_gun)?gt_max:it_max, temp_step, temp_step, false);
-	// Reset the encoders position change status
-	pCore->u_enc.changed();
-	pCore->l_enc.changed();
 }
 
 tUnitPos DASH::devPos(tDevice dev) {
