@@ -1,6 +1,9 @@
 /*
  * nls.h
  *
+ * Sep 03 2023
+ * 	Added Configuration manage menu
+ *
  */
 
 #ifndef MSG_NLS_H_
@@ -8,8 +11,8 @@
 
 #include <string>
 
-typedef enum e_msg { MSG_MENU_MAIN, MSG_MENU_SETUP = 10, MSG_MENU_T12 = 10+12, MSG_MENU_JBC = 10+12+11, MSG_MENU_CALIB = 10+12+11+6, MSG_PID_MENU = 10+12+11+6+5,
-					MSG_ON = 10+12+11+6+5+5, MSG_OFF, MSG_FAN, MSG_PWR,
+typedef enum e_msg { MSG_MENU_MAIN, MSG_MENU_SETUP = 10, MSG_MENU_T12 = 10+12, MSG_MENU_JBC = 10+12+11, MSG_MENU_CALIB = 10+12+11+6, MSG_PID_MENU = 10+12+11+6+5, MSG_FLASH_MENU = 10+12+11+6+5+5,
+					MSG_ON = 10+12+11+6+5+5+5, MSG_OFF, MSG_FAN, MSG_PWR,
 					MSG_REF_POINT, MSG_REED, MSG_TILT, MSG_DEG, MSG_MINUTES, MSG_SECONDS,
 					MSG_CW, MSG_CCW, MSG_SET, MSG_ERROR, MSG_TUNE_PID, MSG_SELECT_TIP,
 					MSG_EEPROM_READ, MSG_EEPROM_WRITE, MSG_EEPROM_DIRECTORY, MSG_FORMAT_EEPROM, MSG_FORMAT_FAILED,
@@ -93,6 +96,12 @@ class NLS_MSG {
 				{"JBC PID",			std::string()},
 				{"Gun PID",			std::string()},
 				{"back to menu",	std::string()},
+				// Configuration manage menu
+				{"Manage config",	std::string()},			// Title
+				{"Load lang data",	std::string()},
+				{"Load config",		std::string()},
+				{"Save config",		std::string()},
+				{"quit",			std::string()},
 				// SINGLE MESSAGE STRINGS
 				{"ON",				std::string()},
 				{"OFF",				std::string()},

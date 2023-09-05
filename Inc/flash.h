@@ -1,6 +1,11 @@
 /*
  * flash.h
  *
+ * Sep 03 2023
+ *     Added W25Q::fileName() method
+ * Sep 04 2023
+ * 	   Added keep_mounted flag
+ *
  */
 
 #ifndef _FLASH_H_
@@ -31,12 +36,15 @@ class W25Q {
 		bool			clearTips(void);
 		bool			clearConfig(void);
 		bool			canDelete(const TCHAR *file_name);
+		const TCHAR*	fileName(uint8_t index);
+		void			keepMounted(bool keep)					{ keep_mounted = keep; }
 	private:
 		TIP_IO_STATUS	returnStatus(bool keep, TIP_IO_STATUS ret_code);
 		uint8_t 		TIP_checkSum(TIP* tip, bool write);
 		uint8_t			CFG_checkSum(RECORD* cfg, bool write);
 		uint8_t			PID_checkSum(PID_PARAMS* pid_params, bool write);
 		bool			backup(ACT_FILE type);
+		bool			keep_mounted	= false;
 		FIL				cfg_f;
 		ACT_FILE		act_f = W25Q_NOT_MOUNTED;				// Open file
 		const uint16_t	blk_size		= 4096;

@@ -5,12 +5,14 @@
  *    Added clean() method to the MODE class
  * Dec 20 2022
  *    Added restore_power_ms to the MCALIB_MANUAL class to stop powering the iron when you try to decrease the preset temperature
+ * Sep 03 2023
+ * 	  Modified the FDEBUG class
+ * 	  Move load language data procedure to the menu.h
  */
 
 #include <vector>
 #include <string>
 #include "hw.h"
-#include "sdload.h"
 
 #ifndef _MODE_H_
 #define _MODE_H_
@@ -200,20 +202,19 @@ class MDEBUG : public MODE {
 //---------------------- The Flash debug mode: display flash status & content ---
 class FDEBUG : public MODE {
 	public:
-		FDEBUG(HW *pCore, MFAIL *pFail) : MODE(pCore)		{ this->pFail = pFail; }
+		FDEBUG(HW *pCore, MODE* m_flash) : MODE(pCore)		{ this->manage_flash = m_flash; }
 		virtual void	init(void);
 		virtual MODE*	loop(void);
 		void			readDirectory();
 	private:
-		SDLOAD		lang_loader;							// To load language data from sd-card to flash
-		FLASH_STATUS	status	=	FLASH_OK;
+		MODE*			manage_flash;
+		FLASH_STATUS	status			=	FLASH_OK;
 		uint16_t		old_ge 			= 0;				// Old Gun encoder value
 		std::string		c_dir			= "/";				// Current directory path
 		std::vector<std::string>	dir_list;				// Directory list
 		int8_t			delete_index	= -1;				// File to be deleted index
 		bool			confirm_format	= false;			// Confirmation dialog activates
 		t_msg_id		msg				= MSG_LAST;			// Error message index
-		MFAIL			*pFail;
 		const uint32_t	update_timeout	= 60000;			// Default update display timeout, ms
 
 };

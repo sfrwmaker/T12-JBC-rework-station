@@ -3,11 +3,15 @@
  *
  *  Created on: 10 July 2022
  *      Author: Alex
+ *
+ *  Sep 03 2023
+ *  	Added MENU_FLASH class
  */
 
 #ifndef MENU_H_
 #define MENU_H_
 #include "mode.h"
+#include "sdload.h"
 
 //---------------------- The Menu mode -------------------------------------------
 class MMENU : public MODE {
@@ -123,6 +127,18 @@ class MENU_PID : public MODE {
 	private:
 		MODE*			mode_pid;
 		enum { MP_T12 = 0, MP_JBC, MP_GUN, MP_BACK };
+};
+
+//---------------------- FLASH manage menu ---------------------------------------
+class MENU_FLASH : public MODE {
+	public:
+		MENU_FLASH(HW* pCore, MFAIL *pFail)	: MODE(pCore)	{ this->pFail = pFail; }
+		virtual void	init(void);
+		virtual MODE*	loop(void);
+	private:
+		MFAIL			*pFail;
+		SDLOAD			lang_loader;						// To load language data from sd-card to flash
+		enum { MF_LOAD_LANG = 0, MF_LOAD_CFG, MF_SAVE_CFG, MF_QUIT };
 };
 
 #endif
