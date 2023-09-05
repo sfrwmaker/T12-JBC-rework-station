@@ -94,8 +94,15 @@
 			"Tune PID":					"",
 			"T12 PID":					"",
 			"JBC PID":					"",
-			"Gun PID":					""
+			"Gun PID":					"",
 			"back to menu":				""
+		},
+		"Manage config": {
+			"Manage config":			"",
+			"Load lang data":			"",
+			"Load config":				"",
+			"Save config":				"",
+			"quit":						""
 		}
 	}
 }
