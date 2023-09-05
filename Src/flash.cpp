@@ -1,6 +1,8 @@
 /*
  * flash.cpp
  *
+ * Sep 03 2023
+ *     Added W25Q::fileName() method
  */
 #include <string.h>
 #include "flash.h"
@@ -65,8 +67,12 @@ bool W25Q::mount(void) {
 
 void W25Q::umount(void) {
 	W25Q::close();
-	f_mount(NULL, "", 0);									// unmount file system
-	act_f = W25Q_NOT_MOUNTED;
+	if (!keep_mounted) {
+		f_mount(NULL, "", 0);								// unmount file system
+		act_f = W25Q_NOT_MOUNTED;
+	} else {
+		act_f = W25Q_NONE;
+	}
 }
 
 void W25Q::close(void) {
@@ -290,6 +296,24 @@ bool W25Q::canDelete(const TCHAR *file_name) {
 	if (strcmp(file_name, fn_cfg) == 0)			return false;
 	if (strcmp(file_name, fn_cfg_backup) == 0)	return false;
 	return true;
+}
+
+const TCHAR*	W25Q::fileName(uint8_t index) {
+	switch (index) {
+		case 0:
+			return fn_tip_calib;
+		case 1:
+			return fn_tip_backup;
+		case 2:
+			return fn_cfg;
+		case 3:
+			return fn_cfg_backup;
+		case 4:
+			return fn_pid;
+		default:
+			return 0;
+	}
+	return 0;
 }
 
 TIP_IO_STATUS W25Q::returnStatus(bool keep, TIP_IO_STATUS ret_code) {

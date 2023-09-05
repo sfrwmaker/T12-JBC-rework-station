@@ -1,10 +1,12 @@
 /*
  * mode.cpp
  *
- * 2022 DEC 20 v.1.00
- *  Added restore_power_ms to the MCALIB_MANUAL::loop() method to stop powering the iron when you try to decrease the preset temperature
- * 2023 FEB 20 v.1.01
- *  Modified the MCALIB_MANUAL::loop(). Changed the encoder small and big step to simplify adjustment of the reference point temperature.
+ * Dec 20 2022 v.1.00
+ *     Added restore_power_ms to the MCALIB_MANUAL::loop() method to stop powering the iron when you try to decrease the preset temperature
+ * Feb 20 2023 v.1.01
+ *     Modified the MCALIB_MANUAL::loop(). Changed the encoder small and big step to simplify adjustment of the reference point temperature.
+ * Sep 05 2023
+ *     Modified the MTACT::init(): minimal tip_index value is 1 in l_enc.reset()
  *
  */
 
@@ -176,7 +178,7 @@ void MTACT::init(void) {
 	CFG*	pCFG	= &pCore->cfg;
 
 	uint8_t tip_index = pCFG->currentTipIndex(d_t12);		// Always draw complete TIPS list: T12 + JBC
-	pCore->l_enc.reset(tip_index, 0, pCFG->TIPS::total()-1, 1, 1, false);
+	pCore->l_enc.reset(tip_index, 1, pCFG->TIPS::total()-1, 1, 1, false); // 0-th tip is a hot Air Gun
 	pCore->dspl.clear();
 	pCore->dspl.drawTitle(MSG_ACTIVATE_TIPS);
 	update_screen = 0;
@@ -1325,25 +1327,12 @@ void FDEBUG::init(void) {
 }
 
 MODE* FDEBUG::loop(void) {
-	if (pCore->u_enc.buttonStatus() == 2) {						// Iron encoder button long press, load data from the SD-card
-		pCore->cfg.umount();									// SPI FLASH will be mounted later to copy data files
-		pCore->dspl.clear();
-		pCore->dspl.dim(50);
-		pCore->dspl.debugMessage("Copying files", 10, 100, 100);
-		t_msg_id e = lang_loader.load();
-		if (e == MSG_LAST) {
-			pCore->buzz.shortBeep();
-		} else {
-			char sd_status[5];
-			sprintf(sd_status, "%3d", lang_loader.sdStatus());	// SD status initialized by SD_Init() function (see sdspi.c)
-			pFail->setMessage(e, sd_status);
-			return pFail;
-		}
-		return mode_lpress;
+	if (pCore->u_enc.buttonStatus() == 2) {						// Upper encoder button long press, load data from the SD-card
+		return manage_flash;									// Call the Configuration manage menu
 	}
 
 	uint8_t b_status = pCore->l_enc.buttonStatus();
-	if (b_status == 2) {										// The button was pressed for a long time, finish mode
+	if (b_status == 2) {										// The lower encoder button was pressed for a long time, finish mode
 	   	return mode_lpress;
 	}
 

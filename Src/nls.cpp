@@ -1,6 +1,9 @@
 /*
  * nls.cpp
  *
+ * Sep 03 2023
+ * 	Added MSG_FLASH_MENU case into NLS_MSG::menuSize()
+ * 	Modified MSG_PID_MENU case in NLS_MSG::menuSize()
  */
 
 #include "nls.h"
@@ -47,8 +50,10 @@ uint8_t NLS_MSG::menuSize(t_msg_id id) {
 			ret = MSG_PID_MENU - MSG_MENU_CALIB -1;
 			break;
 		case MSG_PID_MENU:
-			ret = MSG_ON - MSG_PID_MENU -1;
+			ret = MSG_FLASH_MENU - MSG_PID_MENU -1;
 			break;
+		case MSG_FLASH_MENU:
+			ret = MSG_ON - MSG_FLASH_MENU -1;
 		default:
 			break;
 	}

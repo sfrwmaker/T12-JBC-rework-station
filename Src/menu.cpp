@@ -3,6 +3,10 @@
  *
  *  Created on: 10 July 2022
  *      Author: Alex
+ *
+ *  Sep 03 2023
+ *  	Added manage flash routines: save/load config files, load nls data
+ *
  */
 #include "menu.h"
 
@@ -699,7 +703,7 @@ void MENU_PID::init(void) {
 	uint8_t menu_len = pCore->dspl.menuSize(MSG_PID_MENU);
 	pCore->l_enc.reset(0, 0, menu_len-1, 1, 1, true);
 	pCore->dspl.clear();
-	pCore->dspl.drawTitle(MSG_PID_MENU);						// "Hot Air Gun"
+	pCore->dspl.drawTitle(MSG_PID_MENU);						// "Tune PID"
 	update_screen	= 0;
 }
 
@@ -740,5 +744,69 @@ MODE* MENU_PID::loop(void) {
 	}
 
 	pCore->dspl.menuShow(MSG_PID_MENU, item, 0, false);
+	return this;
+}
+
+//---------------------- FLASH manage menu ---------------------------------------
+void MENU_FLASH::init(void) {
+	uint8_t menu_len = pCore->dspl.menuSize(MSG_FLASH_MENU);
+	pCore->l_enc.reset(0, 0, menu_len-1, 1, 1, true);
+	pCore->dspl.clear();
+	pCore->dspl.drawTitle(MSG_FLASH_MENU);						// "Manage Config"
+	update_screen	= 0;
+}
+
+MODE* MENU_FLASH::loop(void) {
+	RENC*	pEnc	= &pCore->l_enc;
+
+	uint8_t item 	= pEnc->read();
+	uint8_t button	= pEnc->buttonStatus();
+
+	if (button == 1) {
+		update_screen = 0;										// Force to redraw the screen
+	} else if (button == 2) {									// The button was pressed for a long time
+	   	return mode_lpress;
+	}
+
+	if (pEnc->changed() != 0) {
+		update_screen = 0;										// Force to redraw the screen
+	}
+
+	if (HAL_GetTick() < update_screen) return this;
+	update_screen = HAL_GetTick() + 30000;
+
+	if (button == 1) {											// The button was pressed
+		if (item == MF_QUIT)
+			return mode_return;
+		pCore->cfg.umount();									// SPI FLASH will be mounted later to copy data files
+		pCore->dspl.clear();
+		pCore->dspl.dim(50);
+		pCore->dspl.debugMessage("Copying files", 10, 100, 100);
+		t_msg_id e = MSG_LAST;
+		switch (item) {
+			case MF_LOAD_LANG:									// Load nls language files from SD card
+				e = lang_loader.loadNLS();
+				break;
+			case MF_LOAD_CFG:									// Load main configuration files from SD card
+				e = lang_loader.loadCfg(pCore);
+				break;
+			case MF_SAVE_CFG:									// Save main configuration files to SD card
+				e = lang_loader.saveCfg(pCore);
+				break;
+			default:											// exit
+				break;
+		}
+		if (e == MSG_LAST) {
+			pCore->buzz.shortBeep();
+		} else {
+			char sd_status[5];
+			sprintf(sd_status, "%3d", lang_loader.sdStatus());	// SD status initialized by SD_Init() function (see sdspi.c)
+			pFail->setMessage(e, sd_status);
+			return pFail;
+		}
+		return mode_return;
+	}
+
+	pCore->dspl.menuShow(MSG_FLASH_MENU, item, 0, false);
 	return this;
 }

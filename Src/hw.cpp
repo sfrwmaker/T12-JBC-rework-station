@@ -25,6 +25,7 @@ CFG_STATUS HW::init(uint16_t t12_temp, uint16_t jbc_temp, uint16_t gun_temp, uin
 	u_enc.addButton(I_ENC_B_GPIO_Port, I_ENC_B_Pin);
 	l_enc.addButton(G_ENC_B_GPIO_Port, G_ENC_B_Pin);
 
+	cfg.keepMounted(true);									// Do not umount FLASH drive until complete initialization
 	CFG_STATUS cfg_init = 	cfg.init();
 	if (cfg_init == CFG_OK || cfg_init == CFG_NO_TIP) {		// Load NLS configuration data
 		nls.init(&dspl);									// Setup pointer to NLS_MSG class instance to setup messages by NLS_MSG::set() method
@@ -38,6 +39,7 @@ CFG_STATUS HW::init(uint16_t t12_temp, uint16_t jbc_temp, uint16_t gun_temp, uin
 		dspl.setLetterFont(0);								// Set default font, reallocate the bitmap for 3-digits field
 		dspl.rotate(TFT_ROTATION_90);
 	}
+	cfg.keepMounted(false);									// Now the FLASH drive can be unmount for safety data
 	cfg.umount();
 	PIDparam pp   		= 	cfg.pidParams(d_t12);			// load T12 IRON PID parameters
 	t12.load(pp);

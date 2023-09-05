@@ -96,7 +96,8 @@ static	MFAIL			fail(&core);
 static	MTPID			manual_pid(&core);
 static 	MAUTOPID		auto_pid(&core);
 static	MENU_PID		pid_menu(&core, &manual_pid);
-static	FDEBUG			flash_debug(&core, &fail);
+static  MENU_FLASH		flash_menu(&core, &fail);
+static	FDEBUG			flash_debug(&core, &flash_menu);
 static  MABOUT			about(&core, &flash_debug);
 static  MDEBUG			debug(&core);
 static	FFORMAT			format(&core);
@@ -177,6 +178,7 @@ extern "C" void setup(void) {
 	main_menu.setup(&work, &work, &work);
 	about.setup(&work, &work, &debug);
 	debug.setup(&work, &work, &work);
+	flash_menu.setup(&work, &work, &work);
 	flash_debug.setup(&fail, &work, &work);
 	auto_pid.setup(&work, &manual_pid, &manual_pid);
 	format.setup(&work, 0, 0);

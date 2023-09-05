@@ -4,11 +4,14 @@
  *  Created on: 15 aug. 2019.
  *      Author: Alex
  *
- *  2022 DEC 16
+ *  Dec 16 2022
  *   Modified the nearActiveTip routine to find the tip of the specified device type: T12, JBC or 'Extra tip'
  *   Changed CFG::init(); the default t12 tip changed from 0 to 1
- *  2023 MAR 01, v.1.01
+ *  Mar 01 2023, v.1.01
  *   Added no_lower_limit parameter to the CFG::humanToTemp() to correctly display the temperature in the low power mode
+ *  Oct 04 2023
+ *      Changed the CFG_CORE::setDefaults(): default T12 tip index now is 1
+ *      CFG::tipList(): added check of tip_index is not negative
  */
 
 #include <stdlib.h>
@@ -351,6 +354,7 @@ int	CFG::tipList(uint8_t current, TIP_ITEM list[], uint8_t list_len, bool active
 		}
 	}
 	uint8_t loaded = 0;
+	if (tip_index < 0) tip_index = 0;						// Ensure the tip index is not negative inside next loop, because the tip_table will be read
 	for (; tip_index < TIPS::total(); ++tip_index) {
 		if (tip_index == 0) continue;						// Skip Hot Air Gun 'tip'
 		if (active_only && !(tip_table[tip_index].tip_mask & TIP_ACTIVE)) // This tip is not active, but active tip list required
@@ -526,7 +530,7 @@ void CFG_CORE::setDefaults(void) {
 	a_cfg.dspl_bright		= 128;
 	a_cfg.dspl_rotation		=  1;							// TFT_ROTATION_90;
 	strncpy(a_cfg.language, def_language, LANG_LENGTH);
-	a_cfg.t12_tip			= 0;
+	a_cfg.t12_tip			= 1;							// The first T12 tip index. Oth index is a Hot Air Gun
 	a_cfg.jbc_tip 			= TIPS::jbcFirstIndex();
 }
 
