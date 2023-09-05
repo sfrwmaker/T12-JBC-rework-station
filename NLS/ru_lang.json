@@ -96,6 +96,13 @@
 			"JBC PID":					"ПИД JBC",
 			"Gun PID":					"ПИД Термофена"
 			"back to menu":				"назад в меню"
+		},
+		"Manage config": {
+			"Manage config":			"Файлы конфигурации",
+			"Load lang data":			"Загрузить локализацию",
+			"Load config":				"Загрузить параметры",
+			"Save config":				"Сохранить параметры",
+			"quit":						"выход"
 		}
 	}
 }

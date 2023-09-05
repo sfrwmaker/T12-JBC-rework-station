@@ -104,6 +104,13 @@
 			"JBC PID": 				"JBC PID",
 			"Gun PID": 				"Gun PID"
 			"back to menu":			"Powrót do menu"
-		}			
+		},
+		"Manage config": {
+			"Manage config":			"Manage config",
+			"Load lang data":			"Load lang data",
+			"Load config":				"Load config",
+			"Save config":				"Save config",
+			"quit":						"Wyjście"
+		}		
 	}
 }

@@ -91,6 +91,13 @@
 			"JBC PID":					"Ajustar PID JBC",
 			"Gun PID":					"Ajustar PID Ar-Quente"
 			"back to menu":				"Voltar ao Menu"
+		},
+		"Manage config": {
+			"Manage config":			"Manage config",
+			"Load lang data":			"Load lang data",
+			"Load config":				"Load config",
+			"Save config":				"Save config",
+			"quit":						"Sair"
 		}
 	}
 }
