@@ -11,9 +11,11 @@
  *      - the JBC iron is turned-off by timeout (see MWORK::jbcPhaseEnd())
  *      - the Hakko T12 iron is turned-off (see MWORK::t12PressShort() and MWORK::t12PhaseEnd())
  *
- * 2023 MAR 01, v1.01
- *	Heavily revisited the code, many changes:
- *  MWORK::init(), MWORK::loop(), MWORK::manageHardwareSwitches(), MWORK::manageEncoders(),
+ * Mar 01 2023, v1.01
+ *     Heavily revisited the code, many changes:
+ *     MWORK::init(), MWORK::loop(), MWORK::manageHardwareSwitches(), MWORK::manageEncoders()
+ * Sep 08 2023, v 10.3
+ * 	   MWORK::init() added call pD->drawAmbient() to show ambient temperature and horizontal line when mode activated for sure
  */
 
 #include "work_mode.h"
@@ -39,6 +41,7 @@ void MWORK::init(void) {
 	temp			= pCFG->tempPresetHuman(d_gun);
 	temp_i			= pCFG->humanToTemp(temp, ambient, d_gun);
 	pCore->hotgun.setTemp(temp_i);
+	pD->drawAmbient(ambient, pCFG->isCelsius());
 
 	DASH::init();
 	if (start && !not_t12 && pCFG->isAutoStart()) {			// The T12 IRON can be started just after power-on. Default DASH mode is DM_T12_GUN

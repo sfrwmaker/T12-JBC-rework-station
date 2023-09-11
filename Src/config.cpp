@@ -9,14 +9,16 @@
  *   Changed CFG::init(); the default t12 tip changed from 0 to 1
  *  Mar 01 2023, v.1.01
  *   Added no_lower_limit parameter to the CFG::humanToTemp() to correctly display the temperature in the low power mode
- *  Oct 04 2023
+ *  Sep 04 2023
  *      Changed the CFG_CORE::setDefaults(): default T12 tip index now is 1
  *      CFG::tipList(): added check of tip_index is not negative
+ *  Sep 09 2023, v 1.03
+ *      Changed the TIP_CFG::tempCelsius(): use emap() function to approximate temperature correctly
+ *      	in case the internal temperature is greater than tip[i].calibration[3] reference point
  */
 
 #include <stdlib.h>
 #include "config.h"
-//#include "iron.h"
 #include "tools.h"
 #include "vars.h"
 #include "iron_tips.h"
@@ -188,7 +190,7 @@ uint8_t	CFG::currentTipIndex(tDevice dev) {
  * Parameters:
  * temp 		- Device temperature in internal units
  * ambient		- The ambient temperature
- * force_mode	-
+ * dev			- Device: T12, JBC or Hot Gun
  */
 uint16_t CFG::tempToHuman(uint16_t temp, int16_t ambient, tDevice dev) {
 	uint16_t tempH = TIP_CFG::tempCelsius(temp, ambient, dev);
@@ -750,10 +752,10 @@ uint16_t TIP_CFG::tempCelsius(uint16_t temp, int16_t ambient, tDevice dev) {
 			}
 		} else {												// Greater than maximum
 			if (tip[i].calibration[1] < tip[i].calibration[3]) { // If tip calibrated correctly
-				tempH = map(temp, tip[i].calibration[1], tip[i].calibration[3],
+				tempH = emap(temp, tip[i].calibration[1], tip[i].calibration[3],
 					referenceTemp(1, dev)+d, referenceTemp(3, dev)+d);
 			} else {											// Perhaps, the tip calibration process
-				tempH = map(temp, tip[i].calibration[1], int_temp_max,
+				tempH = emap(temp, tip[i].calibration[1], int_temp_max,
 							referenceTemp(1, dev)+d, referenceTemp(3, dev)+d);
 			}
 		}

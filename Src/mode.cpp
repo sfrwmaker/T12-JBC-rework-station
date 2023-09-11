@@ -7,6 +7,12 @@
  *     Modified the MCALIB_MANUAL::loop(). Changed the encoder small and big step to simplify adjustment of the reference point temperature.
  * Sep 05 2023
  *     Modified the MTACT::init(): minimal tip_index value is 1 in l_enc.reset()
+ * Sep 10 2023, v. 1.03
+ *     Added initialization of start_c_check and keep_graph in MAUTOPID::init()
+ *     Modified the MAUTOPID::loop() to start checking of current through the UNIT after a while
+ *     Modified MAUTOPID::loop(): initialize keep_gpath flag when going to call manual_pid
+ *     Modified MAUTOPID::clean(): free the grtaph and PIXMAP data when no keep_graph flag setup
+ *     Modified MAUTOPID::init(): td_limit for d_t12 changed from 6 to 60
  *
  */
 
@@ -378,7 +384,7 @@ void MCALIB::buildFinishCalibration(void) {
 
 /*
  * The calibration procedure consists of 8 steps (number of temperature reference points)
- * Each step is to check the real temperature at given reference point/ The step begins when the rotary encoder pressed
+ * Each step is to check the real temperature at given reference point. The step begins when the rotary encoder pressed
  * see 'Next step begins here'. As soon as PID algorithm used, there is some bouncing process before reference reached, damped oscillations.
  * Reaching required reference temperature process is split into several phases:
  * MC_GET_READY (if the temperature is higher) -> MC_HEATING (over temperature) -> MC_COOLING (under temperature) -> MC_HEATING_AGAIN -> MC_READY
@@ -875,7 +881,7 @@ void MAUTOPID::init(void) {
 
 	pD->pidStart();
 	if (dev_type == d_t12) {
-		td_limit	= 6;
+		td_limit	= 60;
 		pwr_ch_to	= 5000;									// Power change timeout (ms)
 	} else if (dev_type == d_gun){
 		td_limit	= 500;
@@ -900,6 +906,8 @@ void MAUTOPID::init(void) {
 	pD->clear();
 	pD->pidAxis("Auto PID", "T", "p");
 	update_screen 	= 0;
+	start_c_check	= 0;
+	keep_graph		= false;								// Free graph and PIXMAP memmory when exit from this mode
 }
 
 MODE* MAUTOPID::loop(void) {
@@ -907,7 +915,14 @@ MODE* MAUTOPID::loop(void) {
 	RENC*	pEnc	= &pCore->l_enc;
 	UNIT*	pUnit	= unit();
 
-    if (!pUnit->isConnected()) {
+	uint8_t  button		= pEnc->buttonStatus();
+    if(button)
+		update_screen = 0;
+
+    if (start_c_check && HAL_GetTick() > start_c_check) {	// Perhaps, it is time to start checking the current through the UNIT
+    	start_c_check = 0;									// Timeout after power started is over
+    }
+    if (mode != TUNE_OFF && start_c_check == 0 && !pUnit->isConnected()) {
     	if (dev_type != d_gun) {
     		return 0;
     	} else {
@@ -916,11 +931,7 @@ MODE* MAUTOPID::loop(void) {
     	}
     }
 
-	uint8_t  button		= pEnc->buttonStatus();
-    if(button)
-		update_screen = 0;
-
-	if (HAL_GetTick() >= data_update) {
+    if (HAL_GetTick() >= data_update) {
 	    int16_t temp	= pUnit->averageTemp() - base_temp;
 	    uint16_t p		= pUnit->avgPower();
 		data_update 	= HAL_GetTick() + data_period;
@@ -928,9 +939,10 @@ MODE* MAUTOPID::loop(void) {
 	}
 
 	uint16_t pwr = pEnc->read();
-	if (pEnc->changed() != 0) {									// The encoder rotated
+
+	if (pEnc->changed() != 0) {								// The encoder rotated
 		if (mode == TUNE_OFF) {
-			button = 1;											// Simulate the button has been pressed, start heating phase
+			button = 1;										// Simulate the button has been pressed, start heating phase
 			update_screen = 0;
 		} else if (mode == TUNE_HEATING) {
 			pUnit->fixPower(pwr);
@@ -945,18 +957,19 @@ MODE* MAUTOPID::loop(void) {
 	uint32_t pd			= pUnit->pwrDispersion();
 	int32_t  ap			= pUnit->avgPower();
 
-	if (button == 1) {											// Short button press: switch on/off the power
+	if (button == 1) {										// Short button press: switch on/off the power
 		data_period	= 250;
 		if (mode == TUNE_OFF) {
 			mode = TUNE_HEATING;
+			start_c_check		= HAL_GetTick() + c_check_to;
 			base_temp 		= pUnit->presetTemp();
 			base_temp		= constrain(base_temp, 1100, 1600);
-			pD->GRAPH::reset();									// Reset display graph history
+			pD->GRAPH::reset();								// Reset display graph history
 			pUnit->fixPower(pwr);
 			pD->pidShowMsg("Heating");
 			uint32_t n 		= HAL_GetTick();
 			update_screen 	= n + msg_to;
-			phase_to		= 0;								// no timeout for this phase
+			phase_to		= 0;							// no timeout for this phase
 			next_mode 		= 0;
 			return this;
 		} if (mode == TUNE_HEATING) {							// The base temperature stabilized
@@ -974,11 +987,12 @@ MODE* MAUTOPID::loop(void) {
 				pwr_change	= FIX_PWR_NONE;
 				return this;
 			}
-		} else {												// Running mode
+		} else {											// Running mode
 			pUnit->switchPower(false);
 			if ((mode == TUNE_RELAY) && (tune_loops > 8) && updatePID(pUnit)) {
 				if (mode_spress) {
 					mode_spress->useDevice(dev_type);
+					keep_graph	= true;						// Keep graph and PIXMAP memory to use in next mode
 					return mode_spress;
 				}
 			}
@@ -987,30 +1001,31 @@ MODE* MAUTOPID::loop(void) {
 			update_screen = HAL_GetTick() + msg_to;
 			return this;
 		}
-	} else if (button == 2 && mode_lpress) {					// Long button press
-		PIDparam pp = pCore->cfg.pidParams(dev_type);			// Restore standard PID parameters
+	} else if (button == 2 && mode_lpress) {				// Long button press
+		PIDparam pp = pCore->cfg.pidParams(dev_type);		// Restore standard PID parameters
 		pUnit->PID::load(pp);
 		mode_lpress->useDevice(dev_type);
+		keep_graph	= true;									// Keep graph and PIXMAP memory to use in next mode
 		return mode_lpress;
 	}
 
-	if (mode_return && pCore->u_enc.buttonStatus() > 0) {		// The upper encoder button pressed
+	if (mode_return && pCore->u_enc.buttonStatus() > 0) {	// The upper encoder button pressed
 		return mode_return;
 	}
 
 	if (next_mode <= HAL_GetTick()) {
 		switch (mode) {
-			case TUNE_BASE:										// Applying base power
+			case TUNE_BASE:									// Applying base power
 			{
 				bool power_changed = false;
-				if (old_temp == 0) {							// Setup starting temperature
+				if (old_temp == 0) {						// Setup starting temperature
 					old_temp = temp;
 					next_mode = HAL_GetTick() + 1000;
 					return this;
 				} else {
 					next_mode = HAL_GetTick() + 1000;
 					if (pwr_change != FIX_PWR_DONE && temp < base_temp && old_temp > temp) {
-						if (dev_type != d_gun) {				// Add 1% of power
+						if (dev_type != d_gun) {			// Add 1% of power
 							base_pwr += pUnit->getMaxFixedPower()/100;
 						} else {
 							++base_pwr;
@@ -1023,7 +1038,7 @@ MODE* MAUTOPID::loop(void) {
 						else
 							pwr_change = FIX_PWR_INCREASED;
 					} else if (pwr_change != FIX_PWR_DONE && temp > base_temp && old_temp < temp) {
-						if (dev_type != d_gun) {				// Subtract 1% of power
+						if (dev_type != d_gun) {			// Subtract 1% of power
 							base_pwr -= pUnit->getMaxFixedPower()/100;
 
 						} else {
@@ -1043,13 +1058,13 @@ MODE* MAUTOPID::loop(void) {
 				if (old_temp && (td <= td_limit) && (pwr_change == FIX_PWR_DONE || abs(temp - base_temp) < 20)) {
 					base_temp	= temp;
 					delta_power = base_pwr/4;
-					pD->GRAPH::reset();							// Redraw graph, because base temp has been changed!
+					pD->GRAPH::reset();						// Redraw graph, because base temp has been changed!
 					pD->pidShowMsg("pwr plus");
 					pUnit->fixPower(base_pwr + delta_power);
 					pCore->buzz.shortBeep();
 					uint32_t n = HAL_GetTick();
 					update_screen = n + msg_to;
-					next_mode = n + 20000;						// Wait to change the temperature accordingly
+					next_mode = n + 20000;					// Wait to change the temperature accordingly
 					mode = TUNE_PLUS_POWER;
 					phase_to	    = 0;
 					if (td_limit < 150)
@@ -1058,7 +1073,7 @@ MODE* MAUTOPID::loop(void) {
 				}
 				break;
 			}
-			case TUNE_PLUS_POWER:								// Applying base_power+delta_power
+			case TUNE_PLUS_POWER:							// Applying base_power+delta_power
 				if ((td <= td_limit) && (pd <= 4)) {
 					delta_temp	= temp - base_temp;
 					pD->pidShowMsg("pwr minus");
@@ -1066,19 +1081,19 @@ MODE* MAUTOPID::loop(void) {
 					pCore->buzz.shortBeep();
 					uint32_t n = HAL_GetTick();
 					update_screen = n + msg_to;
-					next_mode = n + 40000;						// Wait to change the temperature accordingly
+					next_mode = n + 40000;					// Wait to change the temperature accordingly
 					mode = TUNE_MINUS_POWER;
 					phase_to	= 0;
 					return this;
 				}
 				break;
-			case TUNE_MINUS_POWER:								// Applying base_power-delta_power
+			case TUNE_MINUS_POWER:							// Applying base_power-delta_power
 				if ((temp < (base_temp - delta_temp)) && (td <= td_limit) && (pd <= 4)) {
 					tune_loops	= 0;
 					uint16_t delta = base_temp - temp;
 					if (delta < delta_temp)
-						delta_temp = delta;						// delta_temp is minimum of upper and lower differences
-					delta_temp <<= 1;							// use 2/3
+						delta_temp = delta;					// delta_temp is minimum of upper and lower differences
+					delta_temp <<= 1;						// use 2/3
 					delta_temp /= 3;
 					if (delta_temp < max_delta_temp)
 						delta_temp = max_delta_temp;
@@ -1093,8 +1108,8 @@ MODE* MAUTOPID::loop(void) {
 					return this;
 				}
 				break;
-			case TUNE_RELAY:									// Automatic tuning of PID parameters using relay method
-				if (pUnit->autoTuneLoops() > tune_loops) {		// New oscillation loop
+			case TUNE_RELAY:								// Automatic tuning of PID parameters using relay method
+				if (pUnit->autoTuneLoops() > tune_loops) {	// New oscillation loop
 					tune_loops = pUnit->autoTuneLoops();
 					if (tune_loops > 3) {
 						if (tune_loops < 12) {
@@ -1112,6 +1127,7 @@ MODE* MAUTOPID::loop(void) {
 						mode = TUNE_OFF;
 						if (mode_spress) {
 							mode_spress->useDevice(dev_type);
+							keep_graph	= true;				// Keep graph and PIXMAP memory to use in next mode
 							return mode_spress;
 						}
 					}
@@ -1153,7 +1169,8 @@ bool MAUTOPID::updatePID(UNIT *pUnit) {
 }
 
 void MAUTOPID::clean(void) {
-	pCore->dspl.pidDestroyData();
+	if (!keep_graph)										// Keep_graph flag setup when next mode is manual_pid
+		pCore->dspl.pidDestroyData();
 }
 
 //---------------------- The Fail mode: display error message --------------------
@@ -1161,7 +1178,7 @@ void MFAIL::init(void) {
 	pCore->l_enc.reset(0, 0, 1, 1, 1, false);
 	pCore->buzz.failedBeep();
 	pCore->dspl.clear();
-	pCore->dspl.errorMessage(message, 100);						// Write ERROR message specified with setMessage()
+	pCore->dspl.errorMessage(message, 100);					// Write ERROR message specified with setMessage()
 	if (parameter[0])
 		pCore->dspl.debugMessage(parameter, 50, 200, 170);
 	update_screen = 0;
@@ -1169,7 +1186,7 @@ void MFAIL::init(void) {
 
 MODE* MFAIL::loop(void) {
 	if (pCore->l_enc.buttonStatus() || pCore->l_enc.buttonStatus()) {
-		message = MSG_LAST;										// Clear message
+		message = MSG_LAST;									// Clear message
 		return mode_return;
 	}
 	return this;
@@ -1187,7 +1204,7 @@ void MFAIL::setMessage(const t_msg_id msg, const char *parameter) {
 //---------------------- The About dialog mode. Show about message ---------------
 void MABOUT::init(void) {
 	pCore->l_enc.reset(0, 0, 1, 1, 1, false);
-	setTimeout(20);												// Show version for 20 seconds
+	setTimeout(20);											// Show version for 20 seconds
 	resetTimeout();
 	pCore->dspl.clear();
 	update_screen = 0;
@@ -1196,10 +1213,10 @@ void MABOUT::init(void) {
 MODE* MABOUT::loop(void) {
 	DSPL*	pD		= &pCore->dspl;
 	uint8_t b_status = pCore->l_enc.buttonStatus();
-	if (b_status == 1) {										// Short button press
-		return mode_return;										// Return to the main menu
+	if (b_status == 1) {									// Short button press
+		return mode_return;									// Return to the main menu
 	} else if (b_status == 2) {
-		return mode_lpress;										// Activate debug mode
+		return mode_lpress;									// Activate debug mode
 	}
 	if (pCore->u_enc.buttonStatus() > 0) {
 		return flash_debug;
@@ -1219,7 +1236,7 @@ void MDEBUG::init(void) {
 	pCore->l_enc.reset(min_fan_speed, min_fan_speed, max_fan_speed,  5, 10, false);
 	pCore->dspl.clear();
 	pCore->dspl.drawTitleString("Debug info");
-	jbc_selected	= !pCore->jbc.isReedSwitch(true);			// The jbc IRON is in use, manage it, not T12
+	jbc_selected	= !pCore->jbc.isReedSwitch(true);		// The jbc IRON is in use, manage it, not T12
 	gun_is_on		= false;
 	iron_on			= true;
 	update_screen = 0;
@@ -1227,7 +1244,7 @@ void MDEBUG::init(void) {
 
 MODE* MDEBUG::loop(void) {
 	DSPL*	pD		= &pCore->dspl;
-	IRON*	pIron	= (jbc_selected)?&pCore->jbc:&pCore->t12;		// Use jbc if it is off-hook, otherwise use t12 iron
+	IRON*	pIron	= (jbc_selected)?&pCore->jbc:&pCore->t12;	// Use jbc if it is off-hook, otherwise use t12 iron
 	HOTGUN*	pHG		= &pCore->hotgun;
 
 	bool jbc_select = pCore->jbc.isReedSwitch(true);		// True means REED switch, not TILT one; if jbc_select, the JBC IRON is off-hook
@@ -1258,7 +1275,7 @@ MODE* MDEBUG::loop(void) {
 			pHG->fixPower(0);
 	}
 
-	if (pHG->isReedSwitch(true)) {								// True means REED switch, not TILT one
+	if (pHG->isReedSwitch(true)) {							// True means REED switch, not TILT one
 		if (!gun_is_on) {
 			pHG->setFan(old_fp);
 			pHG->fixPower(gun_power);
@@ -1271,27 +1288,27 @@ MODE* MDEBUG::loop(void) {
 		}
 	}
 
-	if (pCore->l_enc.buttonStatus() == 2) {						// The Hot Air Gun button was pressed for a long time, exit debug mode
+	if (pCore->l_enc.buttonStatus() == 2) {					// The Hot Air Gun button was pressed for a long time, exit debug mode
 	   	return mode_lpress;
 	}
 
 	if (HAL_GetTick() < update_screen) return this;
-	update_screen = HAL_GetTick() + 491;						// The screen update period is a primary number to update TIM1 counter value
+	update_screen = HAL_GetTick() + 491;					// The screen update period is a primary number to update TIM1 counter value
 
 	uint16_t data[12];
-	data[0]	= (jbc_selected)?0:old_ip;							// t12 power
-	data[1]	= (jbc_selected)?old_ip:0;							// jbc power
+	data[0]	= (jbc_selected)?0:old_ip;						// t12 power
+	data[1]	= (jbc_selected)?old_ip:0;						// jbc power
 	if (!iron_on) {
 		data[0] = data[1] = 0;
 	}
 
-	data[2]	= pCore->t12.unitCurrent();							// t12 current
-	data[3]	= pCore->jbc.unitCurrent();							// jbc current
-	data[4]	= pCore->t12.temp();								// t12 temperature
-	data[5]	= pCore->jbc.temp();								// jbc temperature
-	data[6] = pIron->reedInternal();							// t12 or jbc internal tilt switch
-	data[7]	= old_fp;											// Hot Air Gun power
-	data[8]	= gtimPeriod();										// GUN_TIM period
+	data[2]	= pCore->t12.unitCurrent();						// t12 current
+	data[3]	= pCore->jbc.unitCurrent();						// jbc current
+	data[4]	= pCore->t12.temp();							// t12 temperature
+	data[5]	= pCore->jbc.temp();							// jbc temperature
+	data[6] = pIron->reedInternal();						// t12 or jbc internal tilt switch
+	data[7]	= old_fp;										// Hot Air Gun power
+	data[8]	= gtimPeriod();									// GUN_TIM period
 	data[9]	= pHG->unitCurrent();
 	data[10] = pCore->ambientInternal();
 	data[11] = pHG->averageTemp();
@@ -1305,16 +1322,16 @@ MODE* MDEBUG::loop(void) {
 
 //---------------------- The Flash debug mode: display flash status & content ---
 void FDEBUG::init(void) {
-	msg = MSG_LAST;												// No error message yet
+	msg = MSG_LAST;											// No error message yet
 	pCore->dspl.clear();
 	pCore->dspl.drawTitle(MSG_FLASH_DEBUG);
-	if (!pCore->cfg.W25Q::mount()) {							// The flash can be already mounted
-		if (!pCore->cfg.W25Q::reset()) {						// Check the flash size, ensure flash is connected
+	if (!pCore->cfg.W25Q::mount()) {						// The flash can be already mounted
+		if (!pCore->cfg.W25Q::reset()) {					// Check the flash size, ensure flash is connected
 			msg		= MSG_EEPROM_READ;
 			status	= FLASH_ERROR;
 			return;
 		}
-		pCore->l_enc.reset(1, 0, 1, 1, 1, true);				// "Yes or No" dialog menu
+		pCore->l_enc.reset(1, 0, 1, 1, 1, true);			// "Yes or No" dialog menu
 		msg		= MSG_FORMAT_EEPROM;
 		status	= FLASH_NO_FILESYSTEM;
 		return;
@@ -1322,17 +1339,17 @@ void FDEBUG::init(void) {
 	readDirectory();
 	update_screen = 0;
 	status = FLASH_OK;
-	delete_index	= -1;										// No file o be deleted selected
-	confirm_format	= false;									// No confirmation dialog activated yet
+	delete_index	= -1;									// No file o be deleted selected
+	confirm_format	= false;								// No confirmation dialog activated yet
 }
 
 MODE* FDEBUG::loop(void) {
-	if (pCore->u_enc.buttonStatus() == 2) {						// Upper encoder button long press, load data from the SD-card
-		return manage_flash;									// Call the Configuration manage menu
+	if (pCore->u_enc.buttonStatus() == 2) {					// Upper encoder button long press, load data from the SD-card
+		return manage_flash;								// Call the Configuration manage menu
 	}
 
 	uint8_t b_status = pCore->l_enc.buttonStatus();
-	if (b_status == 2) {										// The lower encoder button was pressed for a long time, finish mode
+	if (b_status == 2) {									// The lower encoder button was pressed for a long time, finish mode
 	   	return mode_lpress;
 	}
 
@@ -1340,7 +1357,7 @@ MODE* FDEBUG::loop(void) {
 		uint8_t f_index = (delete_index > 0)?delete_index:old_ge;
 		if (b_status == 1  && pCore->cfg.canDelete(dir_list[f_index].c_str())) {
 			if (delete_index >= 0) {
-				if (pCore->l_enc.read() == 0) {					// Confirmed to delete file
+				if (pCore->l_enc.read() == 0) {				// Confirmed to delete file
 					f_unlink(dir_list[delete_index].c_str());
 					readDirectory();
 				} else {
@@ -1350,23 +1367,23 @@ MODE* FDEBUG::loop(void) {
 				pCore->dspl.drawTitle(MSG_FLASH_DEBUG);
 				delete_index = -1;
 			} else {
-				pCore->l_enc.reset(1, 0, 1, 1, 1, true);		// Prepare to show confirmation dialog, "No" by default
+				pCore->l_enc.reset(1, 0, 1, 1, 1, true);	// Prepare to show confirmation dialog, "No" by default
 				pCore->dspl.clear();
 				delete_index = old_ge;
 				old_ge = 1;
 			}
 			update_screen = 0;
 		}
-		uint16_t entry = pCore->l_enc.read();					// Directory entry number
+		uint16_t entry = pCore->l_enc.read();				// Directory entry number
 		if (entry != old_ge) {
 			old_ge = entry;
 			update_screen = 0;
 		}
 	} else if (status == FLASH_NO_FILESYSTEM) {
-		if (b_status == 1 && confirm_format) {					// Button pressed
-			if (old_ge == 0) {									// "Yes" selected
-				if (pCore->cfg.formatFlashDrive()) {			// Format flash drive
-					if (pCore->cfg.W25Q::mount()) {				// mount flash drive
+		if (b_status == 1 && confirm_format) {				// Button pressed
+			if (old_ge == 0) {								// "Yes" selected
+				if (pCore->cfg.formatFlashDrive()) {		// Format flash drive
+					if (pCore->cfg.W25Q::mount()) {			// mount flash drive
 						c_dir = "/";
 						readDirectory();
 						msg		= MSG_LAST;
@@ -1395,11 +1412,11 @@ MODE* FDEBUG::loop(void) {
 					f_status = std::string("Directory");
 				} else if (file_info.fattrib & AM_ARC) {
 					f_status = std::string("Size: ");
-					if (file_info.fsize >= 0x100000) {			// MB
+					if (file_info.fsize >= 0x100000) {		// MB
 						file_info.fsize >>= 20;
 						f_status += std::to_string(file_info.fsize);
 						f_status += "MB";
-					} else if (file_info.fsize > 0x400) {		// KB
+					} else if (file_info.fsize > 0x400) {	// KB
 						file_info.fsize >>= 10;
 						f_status += std::to_string(file_info.fsize);
 						f_status += "KB";
@@ -1413,7 +1430,7 @@ MODE* FDEBUG::loop(void) {
 		}
 	} else if (status == FLASH_NO_FILESYSTEM) {
 		if (!confirm_format) {
-			pCore->l_enc.reset(1, 0, 1, 1, 1, true);			// Prepare to show confirmation dialog, "No" by default
+			pCore->l_enc.reset(1, 0, 1, 1, 1, true);		// Prepare to show confirmation dialog, "No" by default
 			confirm_format = true;
 			old_ge = 1;
 		}
@@ -1432,7 +1449,7 @@ void FDEBUG::readDirectory(void) {
 		msg 	= MSG_EEPROM_DIRECTORY;
 		status	= FLASH_NO_DIRECTORY;
 		old_ge	= 0;
-		pCore->l_enc.reset(0, 0, 0, 0, 0, false);					// No encoder change
+		pCore->l_enc.reset(0, 0, 0, 0, 0, false);			// No encoder change
 		return;
 	}
 	FILINFO file_info;
@@ -1446,17 +1463,17 @@ void FDEBUG::readDirectory(void) {
 	    dir_list.push_back(entry);
 	}
 	f_closedir(&dir);
-	old_ge = dir_list.size();										// Force to redraw screen
-	pCore->l_enc.reset(0, 0, old_ge-1, 1, 1, false);				// Select directory entry by the rotary encoder
+	old_ge = dir_list.size();									// Force to redraw screen
+	pCore->l_enc.reset(0, 0, old_ge-1, 1, 1, false);			// Select directory entry by the rotary encoder
 }
 
 //---------------------- The Flash format mode: Confirm and format the flash ----
 void FFORMAT::init(void) {
-	p = 2;															// Make sure the message sill be displayed for the first time in the loop
+	p = 2;														// Make sure the message sill be displayed for the first time in the loop
 	pCore->l_enc.reset(1, 0, 1, 1, 1, true);
 	pCore->dspl.clear();
 	pCore->dspl.drawTitle(MSG_EEPROM_READ);
-	pCore->dspl.BRGT::set(80);										// Turn on the display backlight
+	pCore->dspl.BRGT::set(80);									// Turn on the display backlight
 	pCore->dspl.BRGT::on();
 }
 
@@ -1469,10 +1486,10 @@ MODE* FFORMAT::loop(void) {
 	if (pCore->l_enc.buttonStatus() > 0) {
 		if (answer == 0) {
 			if (!pCore->cfg.formatFlashDrive()) {
-				return 0;											// Failed to format the FLASH
+				return 0;										// Failed to format the FLASH
 			}
 		}
-		return mode_return;											// The main working mode
+		return mode_return;										// The main working mode
 	}
 	return this;
 }

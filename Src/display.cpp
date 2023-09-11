@@ -1119,10 +1119,10 @@ void DSPL::checkBox(BITMAP &bm, uint16_t x, uint8_t size, bool checked) {
 	uint8_t  h = bm.height();
 	if (w == 0  || size == 0 || x+size > w || size > h) return;
 	uint8_t y = (h - size) >> 1;
-	bm.drawHLine(x, y, size);									// Top horizontal line
-	bm.drawHLine(x, y+size-1, size);								// Bottom horizontal line
-	bm.drawVLine(x, y+1, size-2);								// Left vertical line
-	bm.drawVLine(x+size-1, y+1, size-2);							// Right vertical line
+	bm.drawHLine(x, y, size);											// Top horizontal line
+	bm.drawHLine(x, y+size-1, size);									// Bottom horizontal line
+	bm.drawVLine(x, y+1, size-2);										// Left vertical line
+	bm.drawVLine(x+size-1, y+1, size-2);								// Right vertical line
 	if (checked && size > 6) {
 		for (uint16_t i = 0; i < size - 6; ++i) {						// Fill-up the square box
 			bm.drawHLine(x+3, y+3+i, size-6);
@@ -1149,10 +1149,10 @@ void DSPL::drawTemp(uint16_t temp, uint16_t x, uint16_t y, bool celsius) {
 }
 
 void DSPL::drawPowerTriangle(uint8_t power, uint16_t x, uint16_t p_top) {
-	uint16_t bm_w = bm_calib_power.width();		// 20x110
+	uint16_t bm_w = bm_calib_power.width();								// 20x110
 	if (bm_w < 20)
-		bm_calib_power = BITMAP(20, 110);							// Create the power gauge bitmap
-	power = gauge(power, 4, 100);									// Increase low power values
+		bm_calib_power = BITMAP(20, 110);								// Create the power gauge bitmap
+	power = gauge(power, 4, 100);										// Increase low power values
 	uint16_t p_height = map(power, 0, 100, 0, bm_calib_power.height());
 	bm_calib_power.drawVGauge(p_height, true);
 	drawBitmap(x-20, p_top, bm_calib_power, bg_color, fg_color);

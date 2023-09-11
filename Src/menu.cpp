@@ -6,6 +6,8 @@
  *
  *  Sep 03 2023
  *  	Added manage flash routines: save/load config files, load nls data
+ *  Sep 08 2023, v 1.03
+ *  	Changed the MENU_PID::loop(): added call of auto_pid routine
  *
  */
 #include "menu.h"
@@ -712,8 +714,9 @@ MODE* MENU_PID::loop(void) {
 
 	uint8_t item 	= pEnc->read();
 	uint8_t button	= pEnc->buttonStatus();
+	uint8_t butt_up	= pCore->u_enc.buttonStatus();				// Use upper encoder to call auto_pid routine
 
-	if (button == 1) {
+	if (button == 1 || butt_up == 1) {
 		update_screen = 0;										// Force to redraw the screen
 	} else if (button == 2) {									// The button was pressed for a long time
 	   	return mode_lpress;
@@ -740,6 +743,18 @@ MODE* MENU_PID::loop(void) {
 				return mode_pid;
 			default:											// exit
 				return mode_return;
+		}
+	} else if (butt_up == 1) {									// Upper encoder used to call auto_pid routine
+		if (!mode_auto_pid) return this;
+		switch (item) {
+			case MP_T12:										// Tune PID of T12 IRON
+				mode_auto_pid->useDevice(d_t12);
+				return mode_auto_pid;
+			case MP_JBC:										// Tune JBC parameters
+				mode_auto_pid->useDevice(d_jbc);
+				return mode_auto_pid;
+			default:											// exit
+				return this;
 		}
 	}
 

@@ -3,15 +3,24 @@
  *
  *  Created on: 13 Jul 2019
  *      Author: Alex
+ *
+ *  Sep 09 2023, v 1.03
+ *  	Added emap(): Extended map. value can be greater than v_max or less than v_min; emap() return value can be less than r_min or greater than r_max
  */
 
 #include "tools.h"
 
-// Arduino IDE map() function: maps the value from v_ interval to r_ interval
-int32_t map(int32_t value, int32_t v_min, int32_t v_max, int32_t r_min, int32_t r_max) {
+// emap() function extended map: maps the value from v_ interval to r_ interval without restriction of the output interval
+int32_t emap(int32_t value, int32_t v_min, int32_t v_max, int32_t r_min, int32_t r_max) {
 	if (v_min == v_max) return r_min;
 	int32_t round = (v_max - v_min) >> 1;
 	int32_t ret =  ((value - v_min) * (r_max - r_min) + round) / (v_max - v_min) + r_min;
+	return ret;
+}
+
+// Arduino IDE map() function: maps the value from v_ interval to r_ interval
+int32_t map(int32_t value, int32_t v_min, int32_t v_max, int32_t r_min, int32_t r_max) {
+	int32_t ret =  emap(value, v_min, v_max, r_min, r_max);
 	if (r_min < r_max)
 		return constrain(ret, r_min, r_max);
 	return constrain(ret, r_max, r_min);

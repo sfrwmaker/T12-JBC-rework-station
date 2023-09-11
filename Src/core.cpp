@@ -95,7 +95,7 @@ static	MCALMENU		calib_menu(&core, &calib_auto, &calib_manual);
 static	MFAIL			fail(&core);
 static	MTPID			manual_pid(&core);
 static 	MAUTOPID		auto_pid(&core);
-static	MENU_PID		pid_menu(&core, &manual_pid);
+static	MENU_PID		pid_menu(&core, &manual_pid, &auto_pid);
 static  MENU_FLASH		flash_menu(&core, &fail);
 static	FDEBUG			flash_debug(&core, &flash_menu);
 static  MABOUT			about(&core, &flash_debug);
@@ -171,6 +171,7 @@ extern "C" void setup(void) {
 	calib_menu.setup(&work, &work, &work);
 	fail.setup(&work, &work, &work);
 	manual_pid.setup(&work, &work, &work);
+	auto_pid.setup(&work, &manual_pid, &manual_pid);
 	pid_menu.setup(&main_menu, &work, &work);
 	param_menu.setup(&main_menu, &work, &work);
 	t12_menu.setup(&main_menu, &work, &work);
