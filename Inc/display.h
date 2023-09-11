@@ -88,6 +88,7 @@ class DSPL : public tft_ILI9341, public BRGT, public GRAPH, public NLS_MSG {
 		void		pidShowMenu(uint16_t pid_k[3], uint8_t index);
 		void		pidShowMsg(const char *msg);
 		void		pidShowInfo(uint16_t period, uint16_t loops);
+		void		pidShowPwr(uint16_t power);
 		void		pidDestroyData(void);
 		void		errorMessage(t_msg_id err_id, uint16_t y);
 		void		showDialog(t_msg_id msg_id, uint16_t y, bool yes, const char *parameter = 0);

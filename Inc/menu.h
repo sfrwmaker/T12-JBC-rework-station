@@ -6,6 +6,8 @@
  *
  *  Sep 03 2023
  *  	Added MENU_FLASH class
+ *  Sep 08 2023, v 1.03
+ *  	Added auto_pid to the pid_menu
  */
 
 #ifndef MENU_H_
@@ -121,11 +123,12 @@ class MENU_JBC : public MODE {
 //---------------------- PID setup menu ------------------------------------------
 class MENU_PID : public MODE {
 	public:
-		MENU_PID(HW* pCore, MODE* pid_tune)	: MODE(pCore)	{ mode_pid		= pid_tune; }
+		MENU_PID(HW* pCore, MODE* pid_tune, MODE* auto_pid)	: MODE(pCore)	{ mode_pid = pid_tune, mode_auto_pid = auto_pid; }
 		virtual void	init(void);
 		virtual MODE*	loop(void);
 	private:
 		MODE*			mode_pid;
+		MODE*			mode_auto_pid;
 		enum { MP_T12 = 0, MP_JBC, MP_GUN, MP_BACK };
 };
 

@@ -8,6 +8,10 @@
  * Sep 03 2023
  * 	  Modified the FDEBUG class
  * 	  Move load language data procedure to the menu.h
+ * Sep 10 2023, v 1.03
+ * 	  Added new variables to the MAUTOPID to monitor the current through the UNIT after powering up:start_c_check and c_check_to
+ * 	  Added new flag variable keep_graph to prevent free memory when proceed with manual pid procedure
+ *
  */
 
 #include <vector>
@@ -152,10 +156,13 @@ class MAUTOPID : public MODE {
 		uint16_t	delta_power = 0;						// Extra power
 		uint16_t	data_period = 250;						// Graph data update period (ms)
 		TuneMode	mode		= TUNE_OFF;					// The preset temperature reached
+		uint32_t	start_c_check = 0;						// The time when to start checking current through the UNIT
 		uint16_t	tune_loops	= 0;						// The number of oscillation loops elapsed in relay mode
+		bool		keep_graph	= false;					// The flag indicating that graph data and PIXMAP should be kept
 		const uint16_t	max_delta_temp 		= 6;			// Maximum possible temperature difference between base_temp and upper temp.
 		const uint32_t	msg_to	= 2000;						// Show message timeout (ms)
 		const uint16_t  max_pwr	= 400;						// Maximum power in the heating phase
+		const uint32_t	c_check_to = 2000;					// Current checking timeout
 };
 
 //---------------------- The Fail mode: display error message --------------------
