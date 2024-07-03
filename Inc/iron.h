@@ -5,8 +5,10 @@
  *    changed iron_emp_coeff in the IRON class from 8 to 12
  * 2022 DEC 23
  *    added temp parameter to the IRON::init() to initialize the IRON temperature at the controller startup
- * 2023 Feb 18
+ * 2023 FEB 18
  *    added stable constant
+ * 2024 JUN 28, v.1.04
+ *    Changed the IRON::sw_jbc_len from 10 to 15
  *
  */
 
@@ -71,7 +73,7 @@ class IRON : public UNIT {
 		const uint8_t	sw_on_value			= 20;
 		const uint8_t	sw_avg_len			= 5;
 		const uint8_t	sw_tilt_len			= 2;
-		const uint8_t 	sw_jbc_len			= 10;			// JBC IRON switches history length
+		const uint8_t 	sw_jbc_len			= 15;			// JBC IRON switches history length
 		const int32_t	stable				= 20000;	// The power value when the Iron reaches the preset temperature. Used in PID::pidStable()
 };
 

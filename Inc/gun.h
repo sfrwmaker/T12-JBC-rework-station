@@ -4,9 +4,11 @@
  * Released Jan 7 2023
  *
  * 2023 FEB 18, v.1.01
- *  Added POWER_HEATING mode to prevent high temperature while heating-up
- *  Added stable constant
- *  Changed HOTGUN::isON() method
+ *    Added POWER_HEATING mode to prevent high temperature while heating-up
+ *    Added stable constant
+ *    Changed HOTGUN::isON() method
+ * 2024 JUN 28, v.1.04
+ *    Changed the HOTGUN::sw_avg_len from 10 to 15
  *
  */
 
@@ -79,7 +81,7 @@ class HOTGUN : public UNIT {
 		const 		uint16_t	fan_on_value	= 1000;
 		const 		uint8_t		sw_off_value	= 30;
 		const 		uint8_t		sw_on_value		= 60;
-		const 		uint8_t		sw_avg_len		= 10;
+		const 		uint8_t		sw_avg_len		= 15;
 		const 		uint8_t		hot_gun_len		= 10;		// The history data length of Hot Air Gun average values
         const		uint32_t	relay_activate	= 1;		// The relay activation delay (loops of TIM1, 1 time per second)
 		const		int32_t		stable			= 300000;	// The power value when the Hot Gun reaches the preset temperature. Used in PID::pidStable()

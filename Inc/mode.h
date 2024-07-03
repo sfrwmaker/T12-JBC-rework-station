@@ -11,6 +11,8 @@
  * Sep 10 2023, v 1.03
  * 	  Added new variables to the MAUTOPID to monitor the current through the UNIT after powering up:start_c_check and c_check_to
  * 	  Added new flag variable keep_graph to prevent free memory when proceed with manual pid procedure
+ * Mar 30 2024 v 1.04
+ *     changed class MTACT to include pointer to the FAIL mode
  *
  */
 
@@ -59,14 +61,6 @@ class MSLCT : public MODE {
 		uint32_t 		tip_begin_select	= 0;			// The time in ms when we started to select new tip
 		uint32_t		tip_disconnected	= 0;			// When the tip has been disconnected
 		bool			manual_change		= false;
-};
-
-//---------------------- The Activate tip mode: select tips to use ---------------
-class MTACT : public MODE {
-	public:
-		MTACT(HW *pCore) : MODE(pCore)						{ }
-		virtual void	init(void);
-		virtual MODE*	loop(void);
 };
 
 //---------------------- The calibrate tip mode: automatic calibration -----------
@@ -175,6 +169,17 @@ class MFAIL : public MODE {
 	private:
 		char			parameter[20] = {0};
 		t_msg_id		message	= MSG_LAST;
+};
+
+//---------------------- The Activate tip mode: select tips to use ---------------
+class MTACT : public MODE {
+	public:
+		MTACT(HW *pCore) : MODE(pCore)						{ }
+		virtual void	init(void);
+		virtual MODE*	loop(void);
+		void			setFail(MFAIL *pf)					{ pFail = pf; }
+	private:
+		MFAIL			*pFail		= 0;					// Pointer to fail mode allows to display error message correctly
 };
 
 //---------------------- The About dialog mode. Show about message ---------------

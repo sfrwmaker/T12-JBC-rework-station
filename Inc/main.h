@@ -131,7 +131,7 @@ void Error_Handler(void);
 #define FAN_POWER_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
-#define FW_VERSION	("1.03")
+#define FW_VERSION	("1.04")
 //#define DEBUG_ON
 /* USER CODE END Private defines */
 
