@@ -41,6 +41,9 @@
  *  During JBC_PHASE, the power is supplying to the JBC iron only, at the end of the phase (CH4 compare interrupt)
  *  the controller checks the T12 temperature and calculates the required power of T12 iron and switch the phase to the T12.
  *
+ *  Mar 30 2024
+ *     Changed void setup(). When the FLASH failed to read, the fail mode would return to flash_debug mode only
+ *     Added active.setFail() call
  */
 
 #include <math.h>
@@ -166,6 +169,7 @@ extern "C" void setup(void) {
 	work.setup(&main_menu, &iselect, &main_menu);
 	iselect.setup(&work, &activate, &main_menu);
 	activate.setup(&work, &work, &main_menu);
+	activate.setFail(&fail);
 	calib_auto.setup(&work, &work, &work);
 	calib_manual.setup(&calib_menu, &work, &work);
 	calib_menu.setup(&work, &work, &work);
@@ -191,6 +195,7 @@ extern "C" void setup(void) {
 			break;
 		case CFG_READ_ERROR:								// Failed to read FLASH
 			fail.setMessage(MSG_EEPROM_READ);
+			fail.setup(&fail, &fail, &flash_debug);			// Do not enter the main working mode
 			pMode	= &fail;
 			break;
 		case CFG_NO_FILESYSTEM:

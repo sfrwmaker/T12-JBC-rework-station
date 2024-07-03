@@ -11,11 +11,13 @@
  *      - the JBC iron is turned-off by timeout (see MWORK::jbcPhaseEnd())
  *      - the Hakko T12 iron is turned-off (see MWORK::t12PressShort() and MWORK::t12PhaseEnd())
  *
- * Mar 01 2023, v1.01
+ * 2023 MAR 01, v1.01
  *     Heavily revisited the code, many changes:
  *     MWORK::init(), MWORK::loop(), MWORK::manageHardwareSwitches(), MWORK::manageEncoders()
- * Sep 08 2023, v 10.3
+ * 2023 SEP 08, v1.03
  * 	   MWORK::init() added call pD->drawAmbient() to show ambient temperature and horizontal line when mode activated for sure
+ * 2024 JUB 28, v1.04
+ *     MWORK::jbcPressShort() when the jbc is powered off and the hot gun is running, turn to the T12_GUN display mode
  */
 
 #include "work_mode.h"
@@ -184,13 +186,13 @@ MODE* MWORK::loop(void) {
 
 // Check the hardware switches: REED switch of the Hot Air Gun and STANDBY switch of JBC iron. Returns True if the switch status changed
 void MWORK::manageHardwareSwitches(CFG* pCFG, IRON *pT12, IRON *pJBC, HOTGUN *pHG) {
-	bool no_t12 = no_ambient && !pT12->isConnected() && !is_extra_tip;	// The T12 iron handle is not connected flag: not ambient sensor, no current through the iron and no extra tip
+	bool no_t12 = no_ambient && !pT12->isConnected() && !is_extra_tip;	// The T12 iron handle is not connected flag: no ambient sensor, no current through the iron and no extra tip
 	if (no_t12 != not_t12) {								// The T12 connection changed
 		not_t12 = no_t12;
 		if (not_t12) {
 			disableT12();
 		} else {
-			enableT12();
+			enableT12();									// The T12 iron requires rotary encoder to be managed
 		}
 	}
 
@@ -223,7 +225,7 @@ void MWORK::manageHardwareSwitches(CFG* pCFG, IRON *pT12, IRON *pJBC, HOTGUN *pH
 	if (jbc_offhook) {										// The JBC IRON is off-hook, try to activate JBC IRON
 		if (!not_jbc) {										// Do not try to switch JBC iron on if it is not connected
 			if (enableJBC()) {								// The dashboard mode changed
-				check_jbc_tm = HAL_GetTick() + check_jbc_to; // Do not check the JBC IRON connectivity till this timeout
+				check_jbc_tm = HAL_GetTick() + check_jbc_to; // When to check JBC current
 				if (t12_phase == IRPH_NORMAL) {				// Force to re-establish the temperature of complementary device
 					t12_phase = IRPH_HEATING;
 					ironPhase(d_t12, t12_phase);
@@ -680,9 +682,13 @@ void MWORK::jbcPressShort(void) {
 		{
 			pCore->jbc.switchPower(false);
 			jbc_phase = IRPH_COOLING;
-			uint16_t temp	= pCore->cfg.tempPresetHuman(d_jbc);
-			presetTemp(d_jbc, temp);
-			ironPhase(d_jbc, jbc_phase);
+			if (not_t12 || !pCore->hotgun.isOn()) {
+				uint16_t temp	= pCore->cfg.tempPresetHuman(d_jbc);
+				presetTemp(d_jbc, temp);
+				ironPhase(d_jbc, jbc_phase);
+			} else {
+				setMode(DM_T12_GUN);
+			}
 			break;
 		}
 		default:

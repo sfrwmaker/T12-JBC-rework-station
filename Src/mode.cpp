@@ -13,7 +13,9 @@
  *     Modified MAUTOPID::loop(): initialize keep_gpath flag when going to call manual_pid
  *     Modified MAUTOPID::clean(): free the grtaph and PIXMAP data when no keep_graph flag setup
  *     Modified MAUTOPID::init(): td_limit for d_t12 changed from 6 to 60
- *
+ * Mar 30 2024
+ *	   Changed the MFAIL::loop() to manage long press of gun encoder button
+ *	   Changed MTACT::loop() to set the error message when FLASH write error occurs
  */
 
 #include <stdio.h>
@@ -201,7 +203,7 @@ MODE* MTACT::loop(void) {
 	if (button == 1) {										// The button pressed
 		pD->BRGT::dim(50);									// Turn-off the brightness, processing
 		if (!pCFG->toggleTipActivation(tip_index)) {
-			pD->errorMessage(MSG_EEPROM_WRITE, 50);
+			pFail->setMessage(MSG_EEPROM_WRITE);
 			return 0;
 		}
 		pD->BRGT::on();										// Restore the display brightness
@@ -1185,8 +1187,13 @@ void MFAIL::init(void) {
 }
 
 MODE* MFAIL::loop(void) {
-	if (pCore->l_enc.buttonStatus() || pCore->l_enc.buttonStatus()) {
-		message = MSG_LAST;									// Clear message
+	uint8_t le = pCore->l_enc.buttonStatus();
+	if (le == 2) {
+		message = MSG_LAST;										// Clear message
+		return mode_lpress;
+	}
+    if (le || pCore->u_enc.buttonStatus()) {
+		message = MSG_LAST;										// Clear message
 		return mode_return;
 	}
 	return this;

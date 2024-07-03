@@ -9,6 +9,8 @@
  *	Limited the relay_ready_cnt value by 7
  * 2023 FEB 19, v1.01
  *  changed PID::init() call in HOTGUN::init(). The Hot Air Gun does not use the aggressive PID parameters when heat-up.
+ * 2023 NOV 05, v1.02 (?)
+ *  fixed error changed TIM11->CCR1 = fan speed to FAN_TIM.Instance->CCR1	= fan_speed; in HOTGUN::power()
  *
  */
 
@@ -233,7 +235,7 @@ uint16_t HOTGUN::power(void) {
 			} else {
 				p = fix_power;
 			}
-			TIM11->CCR1	= fan_speed;
+			FAN_TIM.Instance->CCR1	= fan_speed;
 			break;
 		case POWER_COOLING:
 			if (fanSpeed() < min_fan_speed) {

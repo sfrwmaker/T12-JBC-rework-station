@@ -4,6 +4,14 @@
  *
  * 2023 MAR 01, v1.01
  *	Modified the DASH::drawStatus(), DASH::showOffTimeout(), DASH::initEncoders()
+ * 2024 JUN 28, v.1.04
+ *     Modified methods dealing with main screen for convenience
+ *     DASH::enableJBC()
+ *     DASH::disableJBC()
+ *     DASH::enableGUN()
+ *     DASH::disableGUN()
+ *     DASH::enableT12()
+ *     DASH::disableT12()
  */
 
 #include "dash.h"
@@ -173,60 +181,62 @@ void DASH::ironT12Used(bool active) {
 }
 
 bool DASH::enableJBC(void) {
-	if (u_dev != d_jbc) {									// T12_GUN mode
-		if (not_t12 || pCore->hotgun.isOn())
-			return setMode(DM_JBC_GUN);
-		else
-			return setMode(DM_JBC_T12);
-	}
-	return false;
+	if (u_dev == d_jbc)
+		return false;
+	if (not_t12 || pCore->hotgun.isOn())
+		return setMode(DM_JBC_GUN);
+	return setMode(DM_JBC_T12);
 }
 
 bool DASH::disableJBC(void) {
-	if (u_dev == d_jbc) {									// JBC deactivated
-		if (l_dev == d_gun) {								// JBC_GUN mode
-			if (not_t12)									// T12 is not connected
-				return false;
-		} else if (!not_jbc && pCore->hotgun.isCold()) {	// JBC_T12 mode, no mode change
-			return false;
-		}
-		return setMode(DM_T12_GUN);							// Change upper device from JBC to T12
-	}
-	return false;
+	if (u_dev != d_jbc)
+		return false;
+	if (not_t12)
+		return setMode(DM_JBC_GUN);
+	if (pCore->jbc.isOn())
+		return setMode(DM_JBC_T12);
+	return setMode(DM_T12_GUN);
 }
 
 bool DASH::enableGUN(void) {
-	if (l_dev != d_gun) {									// JBC_T12 mode. We should put the Hot Air Gun to the lower slot
-		if (not_t12)
-			return setMode(DM_JBC_GUN);
-		else
-			return setMode(DM_T12_GUN);
-	}
-	return false;
+	if (l_dev == d_gun)
+		return false;
+	if (not_jbc)
+		return setMode(DM_T12_GUN);
+	if (not_t12)
+		return setMode(DM_JBC_GUN);
+	if (pCore->jbc.isOn())
+		return setMode(DM_JBC_GUN);
+	return setMode(DM_T12_GUN);
 }
 
 bool DASH::disableGUN(void) {
-	if (l_dev == d_gun && pCore->t12.isOn()) {				// GUN turned off and the T12 IRON is working
-		setMode(DM_JBC_T12);
-		return true;
-	}
-	return false;
+	if (l_dev != d_gun)
+		return false;
+	if (not_jbc)
+		return setMode(DM_T12_GUN);
+	if (not_t12)
+		return setMode(DM_JBC_GUN);
+	if (pCore->jbc.isOn())
+		return setMode(DM_JBC_T12);
+	return setMode(DM_T12_GUN);
 }
 
 bool DASH::enableT12(void) {
-	if (!pCore->hotgun.isOn()) {							// The Hot Air Gun is not active
+	if (u_dev == d_t12 || l_dev == d_t12)
+		return false;
+	if (not_jbc)
+		return setMode(DM_T12_GUN);
+	if (pCore->jbc.isOn())
 		return setMode(DM_JBC_T12);
-	}
 	return setMode(DM_T12_GUN);
 }
 
 bool DASH::disableT12(void) {
-	if (u_dev == d_t12) {									// T12_GUN mode
+	if (u_dev == d_t12)
 		return setMode(DM_JBC_GUN);
-	}
-	if (l_dev == d_t12) {									// JBC_T12 mode
+	if (l_dev == d_t12)
 		return setMode(DM_JBC_GUN);
-	}
 	if (h_dev == d_t12)
 		h_dev = d_unknown;
 	return false;
