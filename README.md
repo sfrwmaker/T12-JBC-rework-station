@@ -11,3 +11,9 @@ Revesion history
 - Sep 10 2023, version 1.03.
   - Fixed limited temperature display in iron tune mode: now the temperature higher than 400 degrees displayed correctly.
   - Mirror bugs fixed.
+- July 03 2024, version 1.04.
+  - Adjusted main view when several devices are in use. Reviewed the switching algorythm between active devices: JBC or T12 iron and Hot Iron Gun
+  - Fixed bug in the iron tip activation menu
+  - Updated the managemant of FLASH memory
+  - In case the FLASH memory failed to read, the controller switches into flash debug mode
+  - Added error message when the FLASH write error occurs.
