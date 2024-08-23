@@ -17,3 +17,5 @@ Revesion history
   - Updated the managemant of FLASH memory
   - In case the FLASH memory failed to read, the controller switches into flash debug mode
   - Added error message when the FLASH write error occurs.
+- Aug 15 2024, version 1.05
+  - Added new JBC tips to the tip list
