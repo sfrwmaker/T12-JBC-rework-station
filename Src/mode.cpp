@@ -1,21 +1,23 @@
 /*
  * mode.cpp
  *
- * Dec 20 2022 v.1.00
+ * 2022 DEC, v.1.00
  *     Added restore_power_ms to the MCALIB_MANUAL::loop() method to stop powering the iron when you try to decrease the preset temperature
- * Feb 20 2023 v.1.01
+ * 2023 FEB 20, v.1.01
  *     Modified the MCALIB_MANUAL::loop(). Changed the encoder small and big step to simplify adjustment of the reference point temperature.
- * Sep 05 2023
+ * 2023 SEP 05 2023
  *     Modified the MTACT::init(): minimal tip_index value is 1 in l_enc.reset()
- * Sep 10 2023, v. 1.03
+ * 2023 SEP 10, v. 1.03
  *     Added initialization of start_c_check and keep_graph in MAUTOPID::init()
  *     Modified the MAUTOPID::loop() to start checking of current through the UNIT after a while
  *     Modified MAUTOPID::loop(): initialize keep_gpath flag when going to call manual_pid
  *     Modified MAUTOPID::clean(): free the grtaph and PIXMAP data when no keep_graph flag setup
  *     Modified MAUTOPID::init(): td_limit for d_t12 changed from 6 to 60
- * Mar 30 2024
+ * 2024 MAR 30
  *	   Changed the MFAIL::loop() to manage long press of gun encoder button
  *	   Changed MTACT::loop() to set the error message when FLASH write error occurs
+ * 2024 SEP 07, v 1.06
+ * 	   Changed MCALIB::loop() to check the calibrating phase
  */
 
 #include <stdio.h>
@@ -409,7 +411,6 @@ MODE* MCALIB::loop(void) {
 		if (tuning) {											// New reference temperature was entered
 			pUnit->switchPower(false);
 		    if (phase == MC_READY) {							// The temperature was stabilized and real data can be entered
-		    	phase = MC_OFF;
 			    uint16_t temp	= pUnit->averageTemp();			// The temperature of the IRON in internal units
 			    uint16_t r_temp = encoder;						// The real temperature entered by the user
 			    if (!pCFG->isCelsius())							// Always save the human readable temperature in Celsius
@@ -442,6 +443,7 @@ MODE* MCALIB::loop(void) {
 		    	update_screen = 0;
 		    	return this;
 		    }
+	    	phase = MC_OFF;
 		    tuning = false;
 		}
 		if (!tuning) {											// Next step begins here. Heating to the next reference temperature
@@ -531,7 +533,18 @@ MODE* MCALIB::loop(void) {
 	uint8_t	int_temp_pcnt = 0;
 	if (temp >= start_int_temp)
 		int_temp_pcnt = map(temp, start_int_temp, int_temp_max, 0, 100);	// int_temp_max defined in vars.cpp
-	pD->calibShow(ref_temp_index+1, tempH, real_temp, pCFG->isCelsius(), power, tuning, phase == MC_READY, int_temp_pcnt);
+	uint8_t ready_pcnt = (uint8_t)phase;
+	if (ready_pcnt >= (uint8_t)MC_HEATING) {					// ready_pcnt is in [2;5]
+		ready_pcnt = (ready_pcnt-2) * 33;
+		if (phase == MC_HEATING_AGAIN) {						// About ready
+			uint16_t pd = pUnit->pwrDispersion();
+			pd = constrain(pd, 200, 5200);
+			ready_pcnt += map(pd, 5200, 200, 0, 30);
+		} else if (phase == MC_READY) {
+			ready_pcnt = 100;
+		}
+	}
+	pD->calibShow(ref_temp_index+1, tempH, real_temp, pCFG->isCelsius(), power, tuning, ready_pcnt, int_temp_pcnt);
 	return this;
 }
 

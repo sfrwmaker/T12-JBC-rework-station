@@ -4,7 +4,10 @@
  * 2023 JAN 04
  *  Added new parameter, status, to the DSPL::directoryShow() to show size of the current file
  * 2023 MAR 01
- *   Modified the DSPL::drawTipName() to correctly draw the tip name of the lowe unit
+ *   Modified the DSPL::drawTipName() to correctly draw the tip name of the lower unit
+ * 2024 SEP 07
+ *  Modified DSPL::drawHGauge() method
+ *  Modified DSPL::calibShow() method
  */
 
 #include <string.h>
@@ -688,7 +691,7 @@ void DSPL::directoryShow(const std::vector<std::string> &dir_list, uint16_t item
 	drawBitmap(left, y, bm_menu, bg_color, fg_color);
 }
 
-void DSPL::calibShow(uint8_t ref_point, uint16_t current_temp, uint16_t real_temp, bool celsius, uint8_t power, bool on, bool ready, uint8_t int_temp_pcnt) {
+void DSPL::calibShow(uint8_t ref_point, uint16_t current_temp, uint16_t real_temp, bool celsius, uint8_t power, bool on, uint8_t ready_pcnt, uint8_t int_temp_pcnt) {
 	setFont(letter_font);
 	uint8_t fo 	= getFontTopOffset();
 	uint8_t h	= getFontHeight() + 5;						// Extra space between lines
@@ -710,7 +713,7 @@ void DSPL::calibShow(uint8_t ref_point, uint16_t current_temp, uint16_t real_tem
 	uint16_t p_top = top;									// The power triangle top
 	top += bm_temp.height() + h;							// under current temperature
 
-	if (ready) {											// Show real temperature
+	if (ready_pcnt >= 100) {								// Show real temperature
 		drawFilledTriangle(20, top, 20, top+fo, 30, top+fo/2, fg_color);
 		char temp_buff[6];
 		sprintf(temp_buff, "%3d", real_temp);
@@ -721,10 +724,14 @@ void DSPL::calibShow(uint8_t ref_point, uint16_t current_temp, uint16_t real_tem
 		drawFilledRect(20, top, width()-70, bm_preset.height(), bg_color);
 	}
 	drawPowerTriangle(power, width()-20, p_top);			// Show the power applied
+	// Show progress bar
+	ready_pcnt = constrain(ready_pcnt, 0, 100);
+	uint16_t len = map(ready_pcnt, 0, 100, 0, width()-180);
+	drawHGauge(len, width()-180, 140, height()-40, pr_color, -1, 3);
 	// Show internal temperature bar
 	int_temp_pcnt = constrain(int_temp_pcnt, 0, 100);
-	uint16_t len = map(int_temp_pcnt, 0, 100, 0, width()-64);
-	drawHGauge(len, width()-64, 32, height()-30);
+	len = map(int_temp_pcnt, 0, 100, 0, width()-80);
+	drawHGauge(len, width()-80, 40, height()-16, gd_color);	// The gauge height is 10 pixels
 }
 
 void DSPL::calibManualShow(uint16_t ref_temp, uint16_t current_temp, uint16_t setup_temp, bool celsius, uint8_t power, bool on, bool ready, bool calibrated) {
@@ -773,7 +780,7 @@ void DSPL::calibManualShow(uint16_t ref_temp, uint16_t current_temp, uint16_t se
 	}
 	len = constrain(len, 0, bar_length);
 	top = height()-30;
-	drawHGauge(len, bar_length, 32, top, bar_length/2);
+	drawHGauge(len, bar_length, 32, top, gd_color, bar_length/2);
 	// Draw the temperature in the internal units
 	w = bm_adc_read.width();
 	if (w > 0) {
@@ -1158,14 +1165,21 @@ void DSPL::drawPowerTriangle(uint8_t power, uint16_t x, uint16_t p_top) {
 	drawBitmap(x-20, p_top, bm_calib_power, bg_color, fg_color);
 }
 
-void DSPL::drawHGauge(uint16_t len, uint16_t g_width, uint16_t x, uint16_t y, int16_t label) {
-	drawFilledCircle(x, y+5, 4, gd_color);								// Fill-up the left corner of the gauge
+void DSPL::drawHGauge(uint16_t len, uint16_t g_width, uint16_t x, uint16_t y, uint16_t g_color, int16_t label, uint8_t intervals) {
+	drawFilledCircle(x, y+5, 4, g_color);								// Fill-up the left corner of the gauge
 	drawRoundRect(x-5, y, g_width+10, 10, 5, fg_color);
 	if (len > 0)
-		drawFilledRect(x, y+1, len, 8, gd_color);
+		drawFilledRect(x, y+1, len, 8, g_color);
 	drawFilledRect(x+len, y+1, g_width-len, 8, bg_color);
 	if (label > 0)
 		drawFilledRect(x+label-1, y-4, 3, 18, fg_color);
+	if (intervals > 0) {
+		uint16_t step = g_width / intervals;
+		for (uint16_t i = step; i < g_width; i += step) {
+			if (i >= len) break;
+			drawVLine(x+i, y+1, 8, bg_color);
+		}
+	}
 }
 
 // Draw three digits value 0-999
