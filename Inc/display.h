@@ -6,6 +6,10 @@
  * 2023 MAR 01, v.1.01
  *  Added 'pos' parameter to the timeToOff()
  *  Changed dp_color to light blue
+ * 2024 SEP 07
+ *  Modified DSPL::drawHGauge() method
+ *  Modified DSPL::calibShow() method
+ *  Added DSPL::pr_color constant
  */
 
 #ifndef DISPLAY_H_
@@ -78,7 +82,7 @@ class DSPL : public tft_ILI9341, public BRGT, public GRAPH, public NLS_MSG {
 		void		drawTipList(TIP_ITEM list[], uint8_t list_len, uint8_t index, bool name_only);
 		void		menuShow(t_msg_id menu_id, uint8_t item, const char* value, bool modify);
 		void		directoryShow(const std::vector<std::string> &dir_list, uint16_t item, std::string status);
-		void 		calibShow(uint8_t ref_point, uint16_t current_temp, uint16_t real_temp, bool celsius, uint8_t power, bool on, bool ready, uint8_t int_temp_pcnt);
+		void 		calibShow(uint8_t ref_point, uint16_t current_temp, uint16_t real_temp, bool celsius, uint8_t power, bool on, uint8_t ready_pcnt, uint8_t int_temp_pcnt);
 		void		calibManualShow(uint16_t ref_temp, uint16_t current_temp, uint16_t setup_temp, bool celsius, uint8_t power, bool on, bool ready, bool calibrated);
 		void		endCalibration(void);
 		bool		pidStart(void);
@@ -99,12 +103,13 @@ class DSPL : public tft_ILI9341, public BRGT, public GRAPH, public NLS_MSG {
 		void		checkBox(BITMAP &bm, uint16_t x, uint8_t size, bool checked);
 		void		drawTemp(uint16_t temp, uint16_t x, uint16_t y, bool celsius);
 		void		drawPowerTriangle(uint8_t power, uint16_t x0, uint16_t p_top);
-		void		drawHGauge(uint16_t len, uint16_t g_width, uint16_t x, uint16_t y, int16_t label = -1);
+		void		drawHGauge(uint16_t len, uint16_t g_width, uint16_t x, uint16_t y, uint16_t g_color, int16_t label = -1, uint8_t intervals = 0);
 		void		drawValue(uint16_t value, uint16_t x, uint16_t y, BM_ALIGN align, uint16_t color);
 		void		update(void);
 		uint8_t*	letter_font			= (uint8_t*)u8g_font_profont22r;
 		uint16_t	bg_color			= 0;
 		uint16_t	fg_color			= 0xFFFF;
+		uint16_t	pr_color			= GREEN;			// Progress bar color
 		uint16_t	gd_color			= RED;				// Temperature gauge color
 		uint16_t	dp_color			= 0xFF;				// Dispersion graph color (BLUE)
 		uint16_t	pid_color			= YELLOW;			// Pid information color
