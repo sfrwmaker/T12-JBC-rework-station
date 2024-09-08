@@ -19,3 +19,5 @@ Revesion history
   - Added error message when the FLASH write error occurs.
 - Aug 15 2024, version 1.05
   - Added new JBC tips to the tip list
+- Sep 08 2024, version 1.06
+  - Added green progress bar to the automatic calibration screen indicating how fast the iron reaches the reference temperature
