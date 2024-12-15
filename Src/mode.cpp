@@ -11,13 +11,41 @@
  *     Added initialization of start_c_check and keep_graph in MAUTOPID::init()
  *     Modified the MAUTOPID::loop() to start checking of current through the UNIT after a while
  *     Modified MAUTOPID::loop(): initialize keep_gpath flag when going to call manual_pid
- *     Modified MAUTOPID::clean(): free the grtaph and PIXMAP data when no keep_graph flag setup
+ *     Modified MAUTOPID::clean(): free the graph and PIXMAP data when no keep_graph flag setup
  *     Modified MAUTOPID::init(): td_limit for d_t12 changed from 6 to 60
  * 2024 MAR 30
  *	   Changed the MFAIL::loop() to manage long press of gun encoder button
  *	   Changed MTACT::loop() to set the error message when FLASH write error occurs
  * 2024 SEP 07, v 1.06
  * 	   Changed MCALIB::loop() to check the calibrating phase
+ * 2024 OCT 06, v.1.07
+ * 	   Fixed non-correct GUN connected detection bug in MTPID::loop() by using check_fan variable.
+ * 2024 NOV 05, v.1.08
+ * 	   Modified MCALIB_MANUAL::init() and MCALIB_MANUAL::loop() to skip the 400 degrees reference point in safe iron mode
+ * 	   Implemented pre-heat phase in the calibration mode, when it is possible to heat-up the iron to apply solder drop
+ * 	   	Initialized upper rotary encoder in MCALIB::init() and MCALIB_MANUAL::init()
+ * 	   	Modified MCALIB::loop() and MCALiB_MANUAL::loop() to supply fixed power to the iron in the pre-heat mode
+ * 	   Added quit option into MCALIB:loop() and MCALIB_MANUAL::loop(): long-press the upper encoder to quit calibration procedure
+ * 	   Changed high temperature limit in MCALIB::loop(): r_temp < pCFG->tempMaxC(dev_type) - 30
+ * 2024 NOV 07
+ * 	   Modified MCALIB::loop() and MCALIB::updateReference() to use new functions, CFG_CORE::tempMin() and CFG_CORE::tempMax()
+ * 2024 NOV 08, v.1.08
+ * 	   Replaced the ambientInternal() to ambientRaw() in MDEBUG::loop()
+ * 2024 NOV 09
+ * 		Modified MCALIB::buildFinishCalibration():
+ * 			apply the tip calibration data if the calibration data saved successfully
+ * 			adjust maximal reference temperature more accurately
+ * 		Modified MCALIB_MANUAL::loop(): apply the tip calibration data if the calibration data saved successfully
+ * 2024 NOV 28
+ * 		Modified MCALIB::closestIndex()
+ * 		Modified MCALIB::buildFinishCalibration()
+ * 		Modified MCALIB_MANUAL::loop()
+ * 		Modified MCALIB_MANUAL::buildCalibration()
+ * 2024 DEC 04
+ * 		Fixed non-correct tip calibration data when canceled from both calibration procedures
+ * 		Make sure the highest reference point is correct when safe iron mode activated
+ * 		Modified MCALIB_MANUAL::init(), MCALIB_MANUAL::loop(), MCALIB_MANUAL::buildCalibration(), MCALIB::loop()
+ *
  */
 
 #include <stdio.h>
@@ -269,6 +297,8 @@ void MCALIB::init(void) {
 	phase_change	= 0;
 	update_screen 	= 0;
 	tip_temp_max 	= int_temp_max / 2;							// The maximum possible temperature defined in iron.h
+	manual_power	= 0;										// The fixed power for the preparation phase
+	pCore->u_enc.reset(manual_power, 0, max_manual_power, 2, 10, false);
 	const char *calibrate = pCore->dspl.msg(MSG_MENU_CALIB);	// "Calibrate <tip name>"
 	uint8_t len = strlen(calibrate);
 	if (len > 19) len = 19;										// Limit maximum string length
@@ -331,12 +361,17 @@ uint8_t MCALIB::closestIndex(uint16_t temp) {
 			index = i;
 		}
 	}
+	if (index < MCALIB_POINTS-1 && calib_temp[0][index] < temp) { // Try to find nearest temperature point greater than required temperature
+		if (calib_temp[0][index+1] > temp)
+			++index;
+	}
 	return index;
 }
 
 void MCALIB::updateReference(uint8_t indx) {					// Update reference points
 	CFG*	pCFG	= &pCore->cfg;
-	uint16_t expected_temp 	= map(indx, 0, MCALIB_POINTS, pCFG->tempMinC(dev_type), pCFG->tempMaxC(dev_type));
+	// Here use Celsius degrees
+	uint16_t expected_temp 	= map(indx, 0, MCALIB_POINTS, pCFG->tempMin(dev_type, true), pCFG->tempMax(dev_type, true));
 	uint16_t r_temp			= calib_temp[0][indx];
 	if (indx < 5 && r_temp > (expected_temp + expected_temp/4)) {	// The real temperature is too high
 		tip_temp_max -= tip_temp_max >> 2;						// tip_temp_max *= 0.75;
@@ -370,16 +405,21 @@ void MCALIB::buildFinishCalibration(void) {
 	CFG* 	pCFG 	= &pCore->cfg;
 	uint16_t tip[4];
 	if (calibrationOLS(tip, 150, pCFG->referenceTemp(2, dev_type))) {
-		uint8_t near_index	= closestIndex(pCFG->referenceTemp(3, dev_type));
-		tip[3] = map(pCFG->referenceTemp(3, dev_type), pCFG->referenceTemp(2, dev_type), calib_temp[0][near_index],
-				tip[2], calib_temp[1][near_index]);
-		if (tip[3] > int_temp_max) tip[3] = int_temp_max;		// Maximal possible temperature (main.h)
-
+		uint16_t ref_temp_3 = pCFG->referenceTemp(3, dev_type); // The maximum reference temperature (400 degrees)
+		uint16_t ref_temp_2 = pCFG->referenceTemp(2, dev_type); // The reference temperature at second point (330 degrees)
+		uint16_t temp_max	= pCFG->tempMax(dev_type, true, false);	// The maximum temperature possible, Celsius
+		uint16_t tm			= emap(temp_max, ref_temp_2, ref_temp_3, tip[2], tip[3]); // Evaluate internal value of maximum possible temperature
+		if (tm > int_temp_max) {							// The maximum possible temperature is too high, try to calculate top temperature reference point
+			uint8_t near_index	= closestIndex(ref_temp_3);
+			uint16_t temp_3 = emap(ref_temp_3, ref_temp_2, calib_temp[0][near_index], tip[2], calib_temp[1][near_index]);
+			if (temp_3 > tip[2] && temp_3 - tip[2] > 100)
+				tip[3] = temp_3;
+		}
+		if (tip[3] > int_temp_max) tip[3] = int_temp_max;	// Maximal possible temperature (main.h)
 		uint8_t tip_index 	= pCFG->currentTipIndex(dev_type);
 		int16_t ambient 	= pCore->ambientTemp();
-		pCFG->applyTipCalibtarion(tip, ambient, dev_type);
-		pCFG->saveTipCalibtarion(tip_index, tip, TIP_ACTIVE | TIP_CALIBRATED, ambient);
-		pCore->buzz.shortBeep();
+		bool ok = pCFG->saveTipCalibtarion(tip_index, tip, TIP_ACTIVE | TIP_CALIBRATED, ambient);
+		pCFG->applyTipCalibtarion(tip, ambient, dev_type, ok);
 	} else {
 		pCore->buzz.failedBeep();
 		pCFG->resetTipCalibration(dev_type);
@@ -418,13 +458,13 @@ MODE* MCALIB::loop(void) {
 			    uint8_t ref			= ref_temp_index;
 			    calib_temp[0][ref]	= r_temp;
 			    calib_temp[1][ref]	= temp;
-			    if (r_temp < pCFG->tempMaxC(dev_type) - 50) {	// Continue with the next reference temperature
+			    if (r_temp < pCFG->tempMax(dev_type, true) - 30) {	// Continue with the next reference temperature
 			    	updateReference(ref_temp_index);			// Update reference temperature points
 			    	++ref_temp_index;
 			    	// Try to update the current tip calibration
 			    	uint16_t tip[4];
 			    	 if (calibrationOLS(tip, 100, 600)) {		// Take into the account temperature values in specified interval 100 <= t <= 600 only Finish calibration use another parameters
-			    		 pCFG->applyTipCalibtarion(tip, pCore->ambientTemp(), dev_type);
+			    		 pCFG->applyTipCalibtarion(tip, pCore->ambientTemp(), dev_type, false);
 			    		 if (r_temp > 350) {					// Double check the next reference temperature point
 			    			 int16_t ambient 	= pCore->ambientTemp();
 			    			 uint16_t temp		= pCFG->tempToHuman(calib_temp[1][ref_temp_index], ambient, dev_type);
@@ -472,6 +512,37 @@ MODE* MCALIB::loop(void) {
 		pUnit->PID::load(pp);
 		pD->endCalibration();									// Free the allocated BITMAP
 	    return mode_lpress;
+	}
+
+	uint8_t u_button = pCore->u_enc.buttonStatus();
+	if (u_button == 2) {										// Long-press the upper encoder to quit procedure
+		pCore->buzz.failedBeep();
+		PIDparam pp = pCFG->pidParams(dev_type);				// Restore default PID parameters
+		pUnit->PID::load(pp);
+		pD->endCalibration();									// Free the allocated BITMAP
+		uint8_t tip_index = pCFG->currentTipIndex(dev_type);	// Restore tip calibration data
+		pCFG->changeTip(tip_index);
+	    return mode_lpress;
+	}
+
+	// Manage the prepare phase
+	if (!tuning) {
+		uint16_t u_enc = pCore->u_enc.read();
+		if (pCore->u_enc.changed()) {
+			manual_power = u_enc;
+			pUnit->fixPower(manual_power);
+			update_screen = 0;									// Force to update screen
+		}
+		if (u_button == 1) {
+			if (manual_power > 0) {
+				manual_power = 0;
+				pUnit->switchPower(false);
+			} else {
+				manual_power = pCore->u_enc.read();
+				pUnit->fixPower(manual_power);
+			}
+			update_screen = 0;									// Force to update screen
+		}
 	}
 
 	if (HAL_GetTick() < update_screen) return this;
@@ -544,7 +615,7 @@ MODE* MCALIB::loop(void) {
 			ready_pcnt = 100;
 		}
 	}
-	pD->calibShow(ref_temp_index+1, tempH, real_temp, pCFG->isCelsius(), power, tuning, ready_pcnt, int_temp_pcnt);
+	pD->calibShow(ref_temp_index+1, tempH, real_temp, pCFG->isCelsius(), power, tuning, ready_pcnt, int_temp_pcnt, manual_power);
 	return this;
 }
 
@@ -567,12 +638,14 @@ void MCALIB_MANUAL::init(void) {
 	ref_temp_index 		= 1;									// Start with 260 degrees
 	ready				= false;
 	tuning				= false;
+	for (uint8_t i = 0; i < 3; ++i)								// The reference temperatures are not calibrated yet
+		calib_flag[i] = false;
 	temp_setready_ms	= 0;
 	update_screen		= 0;
 	pCore->l_enc.reset(ref_temp_index, 0, 3, 1, 1, true);		// Select reference temperature point (240) using Encoder
+	manual_power		= 0;
+	pCore->u_enc.reset(manual_power, 0, max_manual_power, 2, 10, false);
 	pCFG->getTipCalibtarion(calib_temp, dev_type);				// Load current calibration data
-	for (uint8_t i = 0; i < 3; ++i)								// The reference temperatures are not calibrated yet
-		calib_flag[i] = false;
 	const char *calibrate = pCore->dspl.msg(MSG_MENU_CALIB);	// "Calibrate <tip name>"
 	uint8_t len = strlen(calibrate);
 	if (len > 19) len = 19;										// Limit maximum string length
@@ -589,7 +662,7 @@ void MCALIB_MANUAL::init(void) {
 // Make sure the tip[0] < tip[1] < tip[2] < tip[3];
 // And the difference between next points is greater than req_diff
 // Change neighborhood temperature data to keep this difference
-void MCALIB_MANUAL::buildCalibration(int8_t ablient, uint16_t tip[], uint8_t ref_point) {
+void MCALIB_MANUAL::buildCalibration(uint16_t tip[], uint8_t ref_point) {
 	if (tip[3] > int_temp_max) tip[3] = int_temp_max;			// int_temp_max is a maximum possible temperature (vars.cpp)
 
 	const int req_diff = 200;
@@ -611,6 +684,14 @@ void MCALIB_MANUAL::buildCalibration(int8_t ablient, uint16_t tip[], uint8_t ref
 				tip[i-1] = t;
 			}
 		}
+	}
+	// Calculate the highest reference temperature
+	if (pCore->cfg.isSafeIronMode() && calib_flag[0] && calib_flag[2]) {
+		uint16_t ref_t0 = pCore->cfg.referenceTemp(0, dev_type);
+		uint16_t ref_t2 = pCore->cfg.referenceTemp(2, dev_type);
+		uint16_t ref_t3 = pCore->cfg.referenceTemp(3, dev_type);
+		tip[3] = emap(ref_t3, ref_t0, ref_t2, tip[0], tip[3]);
+		if (tip[3] > int_temp_max) tip[3] = int_temp_max;
 	}
 }
 
@@ -659,8 +740,8 @@ MODE* MCALIB_MANUAL::loop(void) {
 			    for (uint8_t i = 0; i < 4; ++i) {
 			    	tip[i] = calib_temp[i];
 			    }
-			    buildCalibration(ambient, tip, ref);			// ref is 0 for 200 degrees and 3 for 400 degrees
-			    pCFG->applyTipCalibtarion(tip, ambient, dev_type);
+			    buildCalibration(tip, ref);						// ref is 0 for 200 degrees and 3 for 400 degrees
+			    pCFG->applyTipCalibtarion(tip, ambient, dev_type, false);
 		    }
 		    tuning	= false;
 			encoder = ref_temp_index;
@@ -676,13 +757,55 @@ MODE* MCALIB_MANUAL::loop(void) {
 		update_screen		= 0;
 		restore_power_ms	= 0;
 	} else if (button == 2) {									// The button was pressed for a long time, save tip calibration
-		uint8_t tip_index = pCFG->currentTipIndex(dev_type);	// IRON actual tip index or Hot Air Gun (tip index = 0)
-		buildCalibration(ambient, calib_temp, 10); 				// 10 is bigger then the last index in the reference temp. Means build final calibration
-		pCFG->applyTipCalibtarion(calib_temp, ambient, dev_type);
-		pCFG->saveTipCalibtarion(tip_index, calib_temp, TIP_ACTIVE | TIP_CALIBRATED, ambient);
+		pUnit->switchPower(false);
+		if (pCFG->isSafeIronMode() && calib_temp[3] < calib_temp[2]) { // Perhaps, maximum calibration point was not set correctly
+			calib_temp[3] = calib_temp[2] + 200;
+		}
+		TIP tip;
+		tip.t200		= calib_temp[0];
+		tip.t260		= calib_temp[1];
+		tip.t330		= calib_temp[2];
+		tip.t400		= calib_temp[3];
+		if (pCFG->isValidTipConfig(&tip)) {
+			uint8_t tip_index = pCFG->currentTipIndex(dev_type); // IRON actual tip index or Hot Air Gun (tip index = 0)
+			bool ok = pCFG->saveTipCalibtarion(tip_index, calib_temp, TIP_ACTIVE | TIP_CALIBRATED, ambient);
+			pCFG->applyTipCalibtarion(calib_temp, ambient, dev_type, ok);
+			restorePIDconfig(pCFG, pUnit);
+			pCore->dspl.endCalibration();						// Free the allocated BITMAP
+			return mode_lpress;
+		} else {												// Calibration is not correct
+			pCore->buzz.failedBeep();
+			return this;
+		}
+	}
+
+	uint8_t u_button = pCore->u_enc.buttonStatus();
+	if (u_button == 2) {										// Long-press the upper encoder to quit procedure
+		pCore->buzz.failedBeep();
 		restorePIDconfig(pCFG, pUnit);
-		pCore->dspl.endCalibration();									// Free the allocated BITMAP
+		uint8_t tip_index = pCFG->currentTipIndex(dev_type);	// Restore tip calibration data
+		pCFG->changeTip(tip_index);
 	    return mode_lpress;
+	}
+
+	// Manage the prepare phase
+	if (dev_type != d_gun && !tuning) {							// It is unnecessary to pre-heat the Hot Air Gun
+		uint16_t u_enc = pCore->u_enc.read();
+		if (pCore->u_enc.changed()) {
+			manual_power = u_enc;
+			pUnit->fixPower(manual_power);
+			update_screen = 0;									// Force to update screen
+		}
+		if (u_button == 1) {
+			if (manual_power > 0) {
+				manual_power = 0;
+				pUnit->switchPower(false);
+			} else {
+				manual_power = pCore->u_enc.read();
+				pUnit->fixPower(manual_power);
+			}
+			update_screen = 0;									// Force to update screen
+		}
 	}
 
 	if (HAL_GetTick() < update_screen) return this;
@@ -716,7 +839,8 @@ MODE* MCALIB_MANUAL::loop(void) {
 		temp_setup 		= calib_temp[ref_temp_index];
 	}
 
-	pCore->dspl.calibManualShow(pCFG->referenceTemp(ref_temp_index, dev_type), temp, temp_setup, pCFG->isCelsius(), power, tuning, ready, calib_flag[ref_temp_index]);
+	pCore->dspl.calibManualShow(pCFG->referenceTemp(ref_temp_index, dev_type), temp, temp_setup, pCFG->isCelsius(), power, tuning,
+			ready, calib_flag[ref_temp_index], manual_power);
 	return	this;
 }
 
@@ -734,6 +858,7 @@ void MTPID::init(void) {
 	old_index			= 3;
 	update_screen 		= 0;
 	reset_dspl			= true;
+	check_fan			= 0;
 }
 
 MODE* MTPID::loop(void) {
@@ -747,7 +872,7 @@ MODE* MTPID::loop(void) {
 		return mode_lpress;
 	}
 
-	if (pCore->u_enc.buttonStatus() > 0) {					// Emergency OFF
+	if (pCore->u_enc.buttonStatus() > 0) {						// Emergency OFF
 		on = false;
 		pUnit->switchPower(on);
 	}
@@ -759,7 +884,7 @@ MODE* MTPID::loop(void) {
     	if (dev_type != d_gun) {
     		return 0;
     	} else {
-    		if (pCore->hotgun.isFanWorking())
+    		if (check_fan && HAL_GetTick() > check_fan && pCore->hotgun.isFanWorking())
     			return 0;
     	}
     }
@@ -791,7 +916,11 @@ MODE* MTPID::loop(void) {
 			temp 			= pCFG->humanToTemp(temp, ambient, dev_type);
 			pUnit->setTemp(temp);
 			pUnit->switchPower(on);
-			if (on) pD->GRAPH::reset();						// Reset display graph history
+			if (on) {
+				pD->GRAPH::reset();							// Reset display graph history
+				if (dev_type == d_gun)
+					check_fan = HAL_GetTick() + 2000;		// Start checking the Gun connectivity in a while
+			}
 			pCore->buzz.shortBeep();
 		}
 		if (reset_dspl) {									// Flag indicating we should completely redraw display
@@ -1239,7 +1368,7 @@ MODE* MABOUT::loop(void) {
 		return mode_lpress;									// Activate debug mode
 	}
 	if (pCore->u_enc.buttonStatus() > 0) {
-		return flash_debug;
+		return flash_debug;									// Activate flash debug mode
 	}
 
 
@@ -1330,7 +1459,7 @@ MODE* MDEBUG::loop(void) {
 	data[7]	= old_fp;										// Hot Air Gun power
 	data[8]	= gtimPeriod();									// GUN_TIM period
 	data[9]	= pHG->unitCurrent();
-	data[10] = pCore->ambientInternal();
+	data[10] = pCore->ambientRaw();
 	data[11] = pHG->averageTemp();
 
 	bool gtim_ok = isACsine() && (abs(data[8] - 1000) < 50);

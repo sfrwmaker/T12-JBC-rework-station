@@ -18,6 +18,10 @@
  * 	   MWORK::init() added call pD->drawAmbient() to show ambient temperature and horizontal line when mode activated for sure
  * 2024 JUB 28, v1.04
  *     MWORK::jbcPressShort() when the jbc is powered off and the hot gun is running, turn to the T12_GUN display mode
+ * 2024 OCT 12, v.1.07
+ * 	   Changed MWORK::manageHardwareSwitches(), MWORK::manageEncoders() to implement Hot Gun standby mode
+ * 2024 NOV 06, v.1.08
+ * 		Modified MWORK::manageEncoders() to change Fan speed by 1%
  */
 
 #include "work_mode.h"
@@ -65,6 +69,7 @@ void MWORK::init(void) {
 	check_jbc_tm	= 0;
 	edit_temp		= true;
 	return_to_temp	= 0;
+	gun_switch_off	= 0;
 	pD->clear();
 	initDevices(true, true);
 	if (!not_t12)
@@ -85,7 +90,7 @@ MODE* MWORK::loop(void) {
 		return mode_spress;
 	}
 
-	if (manageEncoders()) {									// Lewer encoder long pressed
+	if (manageEncoders()) {									// Lower encoder long pressed
 		if (mode_lpress) {									// Go to the main menu
 			pCore->buzz.shortBeep();
 			return mode_lpress;
@@ -101,6 +106,16 @@ MODE* MWORK::loop(void) {
 	}
 	if (jbc_phase_end > 0 && HAL_GetTick() >= jbc_phase_end) {
 		jbcPhaseEnd();
+	}
+	if (gun_switch_off > 0 && HAL_GetTick() >= gun_switch_off) {
+		gun_switch_off = 0;
+		pHG->switchPower(false);
+		int16_t temp	= pCore->cfg.tempPresetHuman(d_gun);
+		presetTemp(d_gun, temp);							// Restore Hot Air Gun preset temperature
+		fanSpeed(false);									// Restore Hot Air Gun fan speed
+		disableGUN();
+		pCFG->saveConfig();									// Save configuration when the Hot Air Gun is turned-off
+		ironPhase(d_gun, IRPH_OFF);
 	}
 
     // Check the T12 IRON handle connectivity
@@ -212,10 +227,23 @@ void MWORK::manageHardwareSwitches(CFG* pCFG, IRON *pT12, IRON *pJBC, HOTGUN *pH
 		}
 	} else {												// The Reed switch is closed, switch the Hot Air Gun OFF
 		if (pHG->isOn()) {
-			pHG->switchPower(false);
-			disableGUN();
-			pCFG->saveConfig();								// Save configuration when the Hot Air Gun is turned-off
-			ironPhase(d_gun, IRPH_OFF);						// Draw gray power bitmap
+			uint8_t off_timeout = pCFG->getOffTimeout(d_gun);
+			if (off_timeout) { 								// Put the JBC IRON to the low power mode
+				uint16_t l_temp	= pCFG->getLowTemp(d_gun);
+				int16_t temp	= pCore->cfg.tempPresetHuman(d_gun);
+				if (l_temp >= temp)
+					l_temp = temp - 10;
+				temp = pCore->cfg.humanToTemp(l_temp, ambient, d_gun, true);
+				pHG->lowPowerMode(temp);
+				gun_switch_off = HAL_GetTick() + off_timeout * 60000;
+				presetTemp(d_gun, l_temp);
+				gunStandby();
+			} else {										// Switch-off the JBC IRON immediately
+				pHG->switchPower(false);
+				disableGUN();
+				pCFG->saveConfig();							// Save configuration when the Hot Air Gun is turned-off
+				ironPhase(d_gun, IRPH_OFF);
+			}
 			update_screen	= 0;
 		}
 	}
@@ -501,11 +529,18 @@ bool MWORK::manageEncoders(void) {
 			t12PressShort();
 			update_screen = 0;
 			lowpower_time = 0;
-		} else if (l_dev == d_gun) {						// Short press, the HOT AIR GUN button was pressed, toggle temp/fan
+		} else if (l_dev == d_gun) {						// Short press
+			if (gun_switch_off > 0) {						// The Hot Air Gun is in standby mode, turn-off the Gun
+				gun_switch_off = HAL_GetTick();
+				return false;
+			}
+			// the HOT AIR GUN button was pressed, toggle temp/fan
 			if (edit_temp) {								// Switch to edit fan speed
 				uint16_t fan 	= pHG->presetFan();
+				uint16_t min	= pHG->minFanSpeed();
 				uint16_t max 	= pHG->maxFanSpeed();
-				pCore->l_enc.reset(fan, 0, max, 5, 10, false);
+				uint8_t	 step	= pHG->fanStepPcnt();
+				pCore->l_enc.reset(fan, min, max, step, step<<2, false);
 				edit_temp 		= false;
 				temp_set_h		= fan;
 				return_to_temp	= HAL_GetTick() + edit_fan_timeout;
@@ -539,8 +574,8 @@ bool MWORK::manageEncoders(void) {
 				pHG->setTemp(g_temp_set);
 			} else {
 				f = temp_set_h;								// New fan value
-				fanSpeed(true);
 				pHG->setFan(f);
+				fanSpeed(true);
 				return_to_temp	= HAL_GetTick() + edit_fan_timeout;
 			}
 			pCFG->saveGunPreset(t, f);
@@ -549,14 +584,10 @@ bool MWORK::manageEncoders(void) {
 
     // The fan speed modification mode has 'return_to_temp' timeout
 	if (return_to_temp && HAL_GetTick() >= return_to_temp) {// This reads the Hot Air Gun configuration Also
-		bool celsius 		= pCFG->isCelsius();
+		// The temperature values returned in Celsius or Fahrenheit depending on the user preferences
 		uint16_t g_temp		= pCFG->tempPresetHuman(d_gun);
-		uint16_t t_min		= pCFG->tempMinC(d_gun);		// The minimum preset temperature, defined in iron.h
-		uint16_t t_max		= pCFG->tempMaxC(d_gun);		// The maximum preset temperature
-		if (!celsius) {										// The preset temperature saved in selected units
-			t_min	= celsiusToFahrenheit(t_min);
-			t_max	= celsiusToFahrenheit(t_max);
-		}
+		uint16_t t_min		= pCFG->tempMin(d_gun);			// The minimum preset temperature
+		uint16_t t_max		= pCFG->tempMax(d_gun);			// The maximum preset temperature
 		uint8_t temp_step = 1;
 		if (pCFG->isBigTempStep()) {						// The preset temperature step is 5 degrees
 			g_temp -= g_temp % 5;							// The preset temperature should be rounded to 5

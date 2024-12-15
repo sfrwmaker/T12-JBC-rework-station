@@ -12,6 +12,10 @@
  *     DASH::disableGUN()
  *     DASH::enableT12()
  *     DASH::disableT12()
+ * 2024 OCT 14, v.1.07
+ * 	   Added DASH::gunStandby()
+ * 2024 NOV 07, v.1.08
+ * 	   Modified DASH::initEncoders() to use new functions, CFG_CORE::tempMin() and CFG_CORE::tempMax()
  */
 
 #include "dash.h"
@@ -327,17 +331,11 @@ bool DASH::initDevices(bool init_upper, bool init_lower) {
 void DASH::initEncoders(tDevice u_dev, tDevice l_dev, int16_t u_value, uint16_t l_value) {
 	CFG*	pCFG	= &pCore->cfg;
 
-	bool	celsius 	= pCFG->isCelsius();
-	uint16_t it_min		= pCFG->tempMinC(d_t12);			// The minimum IRON preset temperature, defined in main.h
-	uint16_t it_max		= pCFG->tempMaxC(d_t12);			// The maximum IRON preset temperature
-	uint16_t gt_min		= pCFG->tempMinC(d_gun);			// The minimum GUN preset temperature, defined in main.h
-	uint16_t gt_max		= pCFG->tempMaxC(d_gun);			// The maximum GUN preset temperature
-	if (!celsius) {											// The preset temperature saved in selected units
-		it_min	= celsiusToFahrenheit(it_min);
-		it_max	= celsiusToFahrenheit(it_max);
-		gt_min	= celsiusToFahrenheit(gt_min);
-		gt_max	= celsiusToFahrenheit(gt_max);
-	}
+	// The temperature values returned in Celsius or Fahrenheit depending on the user preferences
+	uint16_t it_min		= pCFG->tempMin(d_t12);				// The minimum IRON preset temperature
+	uint16_t it_max		= pCFG->tempMax(d_t12);				// The maximum IRON preset temperature
+	uint16_t gt_min		= pCFG->tempMin(d_gun);				// The minimum GUN preset temperature, defined in main.h
+	uint16_t gt_max		= pCFG->tempMax(d_gun);				// The maximum GUN preset temperature
 	uint8_t temp_step = 1;
 	if (pCFG->isBigTempStep()) {							// The preset temperature step is 5 degrees
 		temp_step = 5;
@@ -404,4 +402,9 @@ void DASH::presetTemp(tDevice dev, uint16_t temp) {
 void DASH::fanSpeed(bool modify) {
 	if (l_dev == d_gun)
 		pCore->dspl.drawFanPcnt(pCore->hotgun.presetFanPcnt(), modify);
+}
+
+void DASH::gunStandby(void) {
+	if (l_dev == d_gun)
+		pCore->dspl.drawGunStandby();
 }

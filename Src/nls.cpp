@@ -1,9 +1,11 @@
 /*
  * nls.cpp
  *
- * Sep 03 2023
- * 	Added MSG_FLASH_MENU case into NLS_MSG::menuSize()
- * 	Modified MSG_PID_MENU case in NLS_MSG::menuSize()
+ * 2023 SEP 03
+ * 		Added MSG_FLASH_MENU case into NLS_MSG::menuSize()
+ * 		Modified MSG_PID_MENU case in NLS_MSG::menuSize()
+ * 2024 OCT 14, v.1.07
+ * 		Modified the NLS_MSG::menuSize() to add gun setup menu
  */
 
 #include "nls.h"
@@ -44,7 +46,10 @@ uint8_t NLS_MSG::menuSize(t_msg_id id) {
 			ret = MSG_MENU_JBC - MSG_MENU_T12 -1;
 			break;
 		case MSG_MENU_JBC:
-			ret = MSG_MENU_CALIB - MSG_MENU_JBC -1;
+			ret = MSG_MENU_GUN - MSG_MENU_JBC -1;
+			break;
+		case MSG_MENU_GUN:
+			ret = MSG_MENU_CALIB - MSG_MENU_GUN - 1;
 			break;
 		case MSG_MENU_CALIB:
 			ret = MSG_PID_MENU - MSG_MENU_CALIB -1;

@@ -4,19 +4,51 @@
  *  Created on: 15 aug. 2019.
  *      Author: Alex
  *
- *  Dec 16 2022
+ *  2022 DEC 16
  *   Modified the nearActiveTip routine to find the tip of the specified device type: T12, JBC or 'Extra tip'
  *   Changed CFG::init(); the default t12 tip changed from 0 to 1
- *  Mar 01 2023, v.1.01
+ *  2023 MAR 01, v.1.01
  *   Added no_lower_limit parameter to the CFG::humanToTemp() to correctly display the temperature in the low power mode
- *  Sep 04 2023
+ *  2023 SEP 04
  *      Changed the CFG_CORE::setDefaults(): default T12 tip index now is 1
  *      CFG::tipList(): added check of tip_index is not negative
- *  Sep 09 2023, v 1.03
+ *  2023 SEP 09, v 1.03
  *      Changed the TIP_CFG::tempCelsius(): use emap() function to approximate temperature correctly
  *      	in case the internal temperature is greater than tip[i].calibration[3] reference point
- *  Mar 30 2024
+ *  2024, MAR 30
  *      Changed CFG::toggleTipActivation(). The variable tip_index now is signed, as soon as the saveTipData() returns -1 in case of error
+ *  2024 OCT 01, v.1.07
+ *  	Added fast_cooling parameter to the CFG_CORE::setup()
+ *  2024 OCT 13
+ *  	Added case for d_gun to the CFG_CORE::getOffTimeout() and CFG_CORE::getLowTemp()
+ *  2024 OCT 14
+ *  	Modified CFG_CORE::areConfigsIdentical() to check new items (gun_off_timeout and gun_low_temp)
+ *  2024 NOV 05, v.1.08
+ *  	Implemented safe iron mode: Changed CFG_CORE::tempMaxC(), CFG_CORE::tempMinC(), CFG_CORE::setup()
+ *  	Changed CFG_CORE::setup() to add safe iron mode parameter
+ *  	Changed CFG_CORE::setupT12() to preserve bitmap parameters
+ *  2024 NOV 05, v.1.08
+ *  	Implemented safe iron mode: Changed CFG_CORE::tempMaxC(), CFG_CORE::tempMinC(), CFG_CORE::setup()
+ *  	Changed CFG_CORE::setup() to add safe iron mode parameter
+ *  	Changed CFG_CORE::setupT12() to preserve bitmap parameters
+ *  2024 NOV 07
+ *  	Renamed CFG_CORE::tempMinC() -> CFG_CORE::tempMin() and added extra argument
+ *  	Renamed CFG_CORE::tempMaxC() -> CFG_CORE::tempMax() and added extra argument
+ *  	Modified CFG::humanToTemp() to use new functions, CFG_CORE::tempMin() and CFG_CORE::tempMax()
+ *  	Modified CFG_CORE::setup() to use new functions, CFG_CORE::tempMin() and CFG_CORE::tempMax()
+ *  2024 NOV 08
+ *  	Added CFG_CORE::tempMax(tDevice dev, bool celsius, bool safe_iron_mode) to use in the parameters menu
+ *  	Updated the CFG_CORE::tempMax(tDevice dev, bool force_celsius)
+ *  2024 NOV 09
+ *  	Added TIP_CFG::defaultCalibration(TIP *tip) to use in the CFG::toggleTipActivation()
+ *  	Modified CFG::toggleTipActivation() to initialize the tip with default calibration data when first time activation
+ *  	Modified TIP_CFG::isValidTipConfig() to check the difference between tip calibration points
+ *  	Modified CFG::buildTipTable() to clear the calibrated_tip option if the tip calibration is not valid
+ *  	Turn the CFG::saveTipCalibtarion() from void to bool
+ *  	Modified CFG::saveTipCalibtarion(): clear the calibrated_tip option if the tip calibration is not valid
+ *  	Modified CFG::humanToTemp() to correctly translate temperatures greater than maximum possible (400 or 500 depending on device type)
+ *  2024 NOV 16
+ *  	Modified the TIP_CFG::applyTipCalibtarion() to set the tip mask correctly
  */
 
 #include <stdlib.h>
@@ -206,8 +238,8 @@ uint16_t CFG::humanToTemp(uint16_t t, int16_t ambient, tDevice dev, bool no_lowe
 	int d = ambient - TIP_CFG::ambientTemp(dev);
 	uint16_t t200	= referenceTemp(0, dev) + d;
 	uint16_t t400	= referenceTemp(3, dev) + d;
-	uint16_t tmin	= tempMinC(dev);
-	uint16_t tmax	= tempMaxC(dev);
+	uint16_t tmin	= tempMin(dev, true);					// The minimal temperature, Celsius
+	uint16_t tmax	= tempMax(dev, true);					// The maximal temperature, Celsius
 	if (no_lower_limit) tmin = 100;
 	if (!CFG_CORE::isCelsius()) {
 		t200 = celsiusToFahrenheit(t200);
@@ -219,7 +251,7 @@ uint16_t CFG::humanToTemp(uint16_t t, int16_t ambient, tDevice dev, bool no_lowe
 
 	uint16_t left 	= 0;
 	uint16_t right 	= int_temp_max;
-	uint16_t temp = map(t, t200, t400, TIP_CFG::calibration(0, dev), TIP_CFG::calibration(3, dev));
+	uint16_t temp	= emap(t, t200, t400, TIP_CFG::calibration(0, dev), TIP_CFG::calibration(3, dev));
 
 	if (temp > (left+right)/ 2) {
 		temp -= (right-left) / 4;
@@ -286,7 +318,7 @@ void CFG::savePID(PIDparam &pp, tDevice dev) {
 }
 
 // Save new IRON tip calibration data to the FLASH only. Do not change active configuration
-void CFG::saveTipCalibtarion(uint8_t index, uint16_t temp[4], uint8_t mask, int8_t ambient) {
+bool CFG::saveTipCalibtarion(uint8_t index, uint16_t temp[4], uint8_t mask, int8_t ambient) {
 	TIP tip;
 	tip.t200		= temp[0];
 	tip.t260		= temp[1];
@@ -303,10 +335,12 @@ void CFG::saveTipCalibtarion(uint8_t index, uint16_t temp[4], uint8_t mask, int8
 			BUZZER::shortBeep();
 			tip_table[index].tip_index	= tip_index;
 			tip_table[index].tip_mask	= mask;
-			return;
+			return true;
 		}
 	}
+	tip_table[index].tip_mask	&= ~TIP_CALIBRATED;			// The tip is not calibrated
 	BUZZER::failedBeep();
+	return false;
 }
 
 // Toggle (activate/deactivate) tip activation flag. Do not change active tip configuration
@@ -319,6 +353,7 @@ bool CFG::toggleTipActivation(uint8_t index) {
 		const char *name = TIPS::name(index);
 		if (name) {
 			strncpy(tip.name, name, tip_name_sz);			// Initialize tip name
+			defaultCalibration(&tip);						// Initialize default calibration
 			tip.mask = TIP_ACTIVE;
 			ret  = true;
 		}
@@ -453,6 +488,32 @@ bool CFG::clearAllTipsCalibration(void) {
 	return clearTips();
 }
 
+uint16_t CFG_CORE::tempMin(tDevice dev, bool force_celsius) {
+	uint16_t t = (dev == d_gun)?gun_temp_minC:iron_temp_minC;
+	if (!force_celsius && !isCelsius()) {					// Convert to Fahrenheit
+		t = celsiusToFahrenheit(t);
+		t -= t % 10;										// Round left to be multiplied by 10
+	}
+	return t;
+}
+
+uint16_t CFG_CORE::tempMax(tDevice dev, bool force_celsius) {
+	return tempMax(dev, force_celsius || isCelsius(), isSafeIronMode());
+}
+
+uint16_t CFG_CORE::tempMax(tDevice dev, bool celsius, bool safe_iron_mode) {
+	uint16_t t = gun_temp_maxC;
+	if (safe_iron_mode)
+		t = iron_temp_maxC_safe;
+	else
+		t = iron_temp_maxC;
+	if (!celsius) {											// Convert to Fahrenheit
+		t = celsiusToFahrenheit(t);
+		t += 10 - t % 10;									// Round right to be multiplied by 10
+	}
+	return t;
+}
+
 /*
  * Builds the tip configuration table: reads whole tip configuration area and search for configured or active tip
  * If the tip found, updates the tip_table array with the tip chunk number
@@ -466,6 +527,7 @@ uint8_t	CFG::buildTipTable(TIP_TABLE tt[]) {
 			int16_t glb_index = TIPS::index(tmp_tip.name);
 			// Loaded existing tip data once
 			if (glb_index >= 0 && tmp_tip.mask > 0 && tt[glb_index].tip_index == NO_TIP_CHUNK) {
+				if (!isValidTipConfig(&tmp_tip)) tmp_tip.mask &= ~TIP_CALIBRATED;
 				tt[glb_index].tip_index 	= i;
 				tt[glb_index].tip_mask		= tmp_tip.mask;
 				++loaded;
@@ -514,6 +576,8 @@ bool CFG_CORE::areConfigsIdentical(void) {
 	if (a_cfg.bit_mask			!= s_cfg.bit_mask)			return false;
 	if (a_cfg.boost				!= s_cfg.boost)				return false;
 	if (a_cfg.dspl_bright		!= s_cfg.dspl_bright)		return false;
+	if (a_cfg.gun_low_temp		!= s_cfg.gun_low_temp)		return false;
+	if (a_cfg.gun_off_timeout	!= s_cfg.gun_off_timeout)	return false;
 	if (strncmp(a_cfg.language, s_cfg.language, LANG_LENGTH)  != 0)	return false;
 	return true;
 };
@@ -524,15 +588,17 @@ void CFG_CORE::setDefaults(void) {
 	a_cfg.jbc_temp			= 235;
 	a_cfg.gun_temp			= 200;
 	a_cfg.gun_fan_speed		= 1200;
-	a_cfg.t12_off_timeout	= 0;
-	a_cfg.t12_low_temp		= 0;
+	a_cfg.t12_off_timeout	= 5;//0;
+	a_cfg.t12_low_temp		= 180;//0;
 	a_cfg.t12_low_to		= 5;
 	a_cfg.jbc_low_temp		= 180;
-	a_cfg.jbc_off_timeout	= 0;							// Minutes, 0 means switch the IRON immediately
+	a_cfg.jbc_off_timeout	= 5;//0;							// Minutes, 0 means switch the IRON immediately
 	a_cfg.bit_mask			= CFG_CELSIUS | CFG_BUZZER | CFG_U_CLOCKWISE | CFG_L_CLOCKWISE | CFG_BIG_STEP;
-	a_cfg.boost				= 0;
+	a_cfg.boost				= 80;//0;
 	a_cfg.dspl_bright		= 128;
 	a_cfg.dspl_rotation		=  1;							// TFT_ROTATION_90;
+	a_cfg.gun_off_timeout	= 0;
+	a_cfg.gun_low_temp		= 180;
 	strncpy(a_cfg.language, def_language, LANG_LENGTH);
 	a_cfg.t12_tip			= 1;							// The first T12 tip index. Oth index is a Hot Air Gun
 	a_cfg.jbc_tip 			= TIPS::jbcFirstIndex();
@@ -561,6 +627,24 @@ PIDparam CFG_CORE::pidParamsSmooth(tDevice dev) {
 	}
 }
 
+uint8_t	CFG_CORE::getOffTimeout(tDevice dev) {
+	if (dev == d_jbc)
+		return a_cfg.jbc_off_timeout;
+	else if (dev == d_t12)
+		return a_cfg.t12_off_timeout;
+	else
+		return a_cfg.gun_off_timeout;
+}
+
+uint16_t CFG_CORE::getLowTemp(tDevice dev)	{
+	if (dev == d_jbc)
+		return a_cfg.jbc_low_temp;
+	else if (dev == d_t12)
+		return a_cfg.t12_low_temp;
+	else
+		return a_cfg.gun_low_temp;
+}
+
 uint16_t CFG_CORE::tempPresetHuman(tDevice dev) {
 	if (dev == d_gun) {
 		return a_cfg.gun_temp;
@@ -577,7 +661,7 @@ const char *CFG_CORE::getLanguage(void) {
 }
 
 // Apply main configuration parameters: automatic off timeout, buzzer and temperature units
-void CFG_CORE::setup(bool buzzer, bool celsius, bool big_temp_step, bool i_enc, bool g_enc, uint8_t bright) {
+void CFG_CORE::setup(bool buzzer, bool celsius, bool big_temp_step, bool i_enc, bool g_enc, bool ips_display, bool safe_iron_mode, uint8_t bright) {
 	bool cfg_celsius		= a_cfg.bit_mask & CFG_CELSIUS;
 	if (cfg_celsius	!= celsius) {							// When we change units, the temperature should be converted
 		if (celsius) {										// Translate preset temp. from Fahrenheit to Celsius
@@ -590,20 +674,27 @@ void CFG_CORE::setup(bool buzzer, bool celsius, bool big_temp_step, bool i_enc, 
 			a_cfg.gun_temp	= celsiusToFahrenheit(a_cfg.gun_temp);
 		}
 	}
-	a_cfg.bit_mask	&= CFG_SWITCH | CFG_AU_START;
+	a_cfg.bit_mask	&=  CFG_SWITCH | CFG_AU_START;			// Preserve these bits
 	if (celsius)		a_cfg.bit_mask |= CFG_CELSIUS;
 	if (buzzer)			a_cfg.bit_mask |= CFG_BUZZER;
 	if (big_temp_step)	a_cfg.bit_mask |= CFG_BIG_STEP;
 	if (i_enc)			a_cfg.bit_mask |= CFG_U_CLOCKWISE;
 	if (g_enc)			a_cfg.bit_mask |= CFG_L_CLOCKWISE;
+	if (ips_display)	a_cfg.bit_mask |= CFG_DSPL_TYPE;
+	if (safe_iron_mode)	a_cfg.bit_mask |= CFG_SAFE_MODE;
 	a_cfg.dspl_bright	= constrain(bright, 1, 100);
+	if (safe_iron_mode) {									// Limit the iron preset temperature
+		uint16_t t_max = tempMax(d_t12);					// Can use any IRON device, d_t12 or d_jbc; Temperature is in Celsius or Fahrenheit
+		if (a_cfg.t12_temp > t_max) a_cfg.t12_temp = t_max;
+		if (a_cfg.jbc_temp > t_max) a_cfg.jbc_temp = t_max;
+	}
 }
 
 void CFG_CORE::setupT12(bool reed, bool auto_start, uint8_t off_timeout, uint16_t low_temp, uint8_t low_to, uint8_t delta_temp, uint16_t duration) {
 	a_cfg.t12_off_timeout	= off_timeout;
 	a_cfg.t12_low_temp		= low_temp;
 	a_cfg.t12_low_to		= low_to;
-	a_cfg.bit_mask	&= CFG_CELSIUS | CFG_BUZZER | CFG_BIG_STEP | CFG_U_CLOCKWISE | CFG_L_CLOCKWISE;
+	a_cfg.bit_mask			&= ~(CFG_SWITCH | CFG_AU_START);
 	if (reed)			a_cfg.bit_mask |= CFG_SWITCH;
 	if (auto_start) 	a_cfg.bit_mask |= CFG_AU_START;
 	if (delta_temp > 75) delta_temp = 75;
@@ -619,6 +710,16 @@ void CFG_CORE::setupT12(bool reed, bool auto_start, uint8_t off_timeout, uint16_
 void CFG_CORE::setupJBC(uint8_t off_timeout, uint16_t stby_temp) {
 	a_cfg.jbc_low_temp 		= stby_temp;
 	a_cfg.jbc_off_timeout	= constrain(off_timeout, 0, 30);
+}
+
+void CFG_CORE::setupGUN(bool fast_gun_chill, uint8_t stby_timeout, uint16_t stby_temp) {
+	if (fast_gun_chill) {
+		a_cfg.bit_mask		|= CFG_FAST_COOLING;
+	} else {
+		a_cfg.bit_mask		&= ~CFG_FAST_COOLING;
+	}
+	a_cfg.gun_off_timeout	= stby_timeout;
+	a_cfg.gun_low_temp		= stby_temp;
 }
 
 void CFG_CORE::savePresetTempHuman(uint16_t temp_set, tDevice dev_type) {
@@ -774,12 +875,13 @@ void TIP_CFG::getTipCalibtarion(uint16_t temp[4], tDevice dev) {
 }
 
 // Apply new IRON tip calibration data to the current configuration
-void TIP_CFG::applyTipCalibtarion(uint16_t temp[4], int8_t ambient, tDevice dev) {
+void TIP_CFG::applyTipCalibtarion(uint16_t temp[4], int8_t ambient, tDevice dev, bool calibrated) {
 	uint8_t i = uint8_t(dev);
 	for (uint8_t j = 0; j < 4; ++j)
 		tip[i].calibration[j]	= temp[j];
 	tip[i].ambient	= ambient;
-	tip[i].mask		= TIP_CALIBRATED | TIP_ACTIVE;
+	tip[i].mask		= TIP_ACTIVE;
+	if (calibrated) tip[i].mask	|= TIP_CALIBRATED;
 	if (tip[i].calibration[3] > int_temp_max) tip[i].calibration[3] = int_temp_max;
 }
 
@@ -790,15 +892,24 @@ void TIP_CFG::resetTipCalibration(tDevice dev) {
 
 // Apply default calibration parameters of the tip; Prevent overheating of the tip
 void TIP_CFG::defaultCalibration(tDevice dev) {
-	uint8_t i = uint8_t(dev);
-	tip[i].calibration[0]	= 1200;
-	tip[i].calibration[1]	= 1900;
-	tip[i].calibration[2]	= 2500;
-	tip[i].calibration[3]	= 2900;
-	tip[i].ambient			= default_ambient;					// vars.cpp
-	tip[i].mask				= TIP_ACTIVE;
+	uint8_t dev_indx = uint8_t(dev);
+	for (uint8_t i = 0; i < 4; ++i)
+		tip[dev_indx].calibration[i] = calib_default[i];
+	tip[dev_indx].ambient	= default_ambient;					// vars.cpp
+	tip[dev_indx].mask		= TIP_ACTIVE;
+}
+
+void TIP_CFG::defaultCalibration(TIP *tip) {
+	uint8_t i = 0;
+	tip->t200				= calib_default[i++];
+	tip->t260				= calib_default[i++];
+	tip->t330				= calib_default[i++];
+	tip->t400				= calib_default[i];
 }
 
 bool TIP_CFG::isValidTipConfig(TIP *tip) {
-	return (tip->t200 < tip->t260 && tip->t260 < tip->t330 && tip->t330 < tip->t400);
+	if (tip->t200 >= tip->t260 || (tip->t260 - tip->t200) < min_temp_diff) return false;
+	if (tip->t260 >= tip->t330 || (tip->t330 - tip->t260) < min_temp_diff) return false;
+	if (tip->t330 >= tip->t400 || (tip->t400 - tip->t330) < min_temp_diff) return false;
+	return true;
 }

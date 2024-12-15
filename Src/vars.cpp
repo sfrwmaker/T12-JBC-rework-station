@@ -12,6 +12,7 @@ const uint8_t	auto_pid_hist_length		= 16;			// The history data length of PID tu
 const uint8_t	ec							= 200;			// Exponential average coefficient (default value)
 
 const uint16_t	iron_temp_minC				= 180;			// Minimum IRON calibration temperature in degrees of Celsius
+const uint16_t 	iron_temp_maxC_safe 		= 350;			// Maximum IRON calibration temperature in degrees of Celsius in safe mode
 const uint16_t 	iron_temp_maxC 				= 450;			// Maximum IRON calibration temperature in degrees of Celsius
 const uint16_t	gun_temp_minC				= 80;			// Minimum Hot Air Gun calibration temperature in degrees of Celsius
 const uint16_t 	gun_temp_maxC 				= 500;			// Maximum Hot Air Gun calibration temperature in degrees of Celsius

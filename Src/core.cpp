@@ -41,9 +41,16 @@
  *  During JBC_PHASE, the power is supplying to the JBC iron only, at the end of the phase (CH4 compare interrupt)
  *  the controller checks the T12 temperature and calculates the required power of T12 iron and switch the phase to the T12.
  *
- *  Mar 30 2024
- *     Changed void setup(). When the FLASH failed to read, the fail mode would return to flash_debug mode only
- *     Added active.setFail() call
+ *  2024 MAR 30
+ *  	Changed void setup(). When the FLASH failed to read, the fail mode would return to flash_debug mode only
+ *  	Added active.setFail() call
+ *  2024 OCT 13, v.1.07
+ *  	Added gun_menu instance
+ *  	Modified parameters in the main_menu constructor
+ *  	Modified setup() function to configure gun_menu instance
+ *  2024 NOV 10, v.1.08
+ *  	Added internal temperature and vrefint readings on ADC1
+ *  		Modified setup() and HAL_ADC_ConvCpltCallback()
  */
 
 #include <math.h>
@@ -54,7 +61,7 @@
 #include "menu.h"
 #include "vars.h"
 
-#define ADC_T12 	(2)										// Activated ADC Ranks Number (hadc1.Init.NbrOfConversion)
+#define ADC_T12 	(4)										// Activated ADC Ranks Number (hadc1.Init.NbrOfConversion)
 #define ADC_JBC 	(2)										// Activated ADC Ranks Number (hadc2.Init.NbrOfConversion)
 #define ADC_CUR		(3)										// Activated ADC Ranks Number (hadc3.Init.NbrOfConversion)
 
@@ -63,7 +70,6 @@ extern ADC_HandleTypeDef	hadc2;
 extern ADC_HandleTypeDef	hadc3;
 extern TIM_HandleTypeDef	htim1;
 extern TIM_HandleTypeDef	htim5;
-extern TIM_HandleTypeDef 	htim10;
 extern TIM_HandleTypeDef	htim11;
 
 volatile uint32_t errors	= 0;
@@ -107,7 +113,8 @@ static	FFORMAT			format(&core);
 static	MSETUP			param_menu(&core, &pid_menu);
 static	MENU_T12		t12_menu(&core, &calib_menu);
 static	MENU_JBC		jbc_menu(&core, &calib_menu);
-static	MMENU			main_menu(&core, &iselect, &param_menu, &activate, &t12_menu, &jbc_menu, &calib_manual, &about);
+static  MENU_GUN		gun_menu(&core, &calib_manual);
+static	MMENU			main_menu(&core, &iselect, &param_menu, &activate, &t12_menu, &jbc_menu, &gun_menu, &about);
 static	MODE*           pMode = &work;
 
 bool 		isACsine(void)		{ return ac_sine; 				}
@@ -141,21 +148,25 @@ extern "C" void setup(void) {
 	// Read temperature values
 	HAL_ADC_Start(&hadc1);
 	HAL_ADC_PollForConversion(&hadc1, 100);
-	uint16_t t12_temp = HAL_ADC_GetValue(&hadc1);
+	uint16_t t12_temp	= HAL_ADC_GetValue(&hadc1);
 	HAL_ADC_PollForConversion(&hadc1, 100);
-	uint16_t ambient = HAL_ADC_GetValue(&hadc1);
+	uint16_t ambient	= HAL_ADC_GetValue(&hadc1);
+	HAL_ADC_PollForConversion(&hadc1, 100);
+	uint16_t vref	= HAL_ADC_GetValue(&hadc1);
+	HAL_ADC_PollForConversion(&hadc1, 100);
+	uint16_t t_mcu	= HAL_ADC_GetValue(&hadc1);
 	HAL_ADC_Stop(&hadc1);
 	HAL_ADC_Start(&hadc2);
 	HAL_ADC_PollForConversion(&hadc2, 100);
-	uint16_t jbc_temp = HAL_ADC_GetValue(&hadc2);
+	uint16_t jbc_temp 	= HAL_ADC_GetValue(&hadc2);
 	HAL_ADC_PollForConversion(&hadc2, 100);
-	uint16_t gun_temp = HAL_ADC_GetValue(&hadc2);
+	uint16_t gun_temp 	= HAL_ADC_GetValue(&hadc2);
 	HAL_ADC_Stop(&hadc2);
 	gtim_period.length(10);
 	gtim_period.reset(1000);								// Default TIM1 period, ms
 	max_iron_pwm	= htim5.Instance->CCR4 - 40;			// Max value should be less than TIM5.CH4 value by 40.
 
-	CFG_STATUS cfg_init = core.init(t12_temp, jbc_temp, gun_temp, ambient);
+	CFG_STATUS cfg_init = core.init(t12_temp, jbc_temp, gun_temp, ambient, vref, t_mcu);
 	core.t12.setCheckPeriod(3);								// Start checking the T12 IRON connectivity
 	HAL_TIM_PWM_Start(&htim1, 	TIM_CHANNEL_4);				// PWM signal of Hot Air Gun
 	HAL_TIM_OC_Start_IT(&htim1, TIM_CHANNEL_3);				// Calculate power of Hot Air Gun interrupt
@@ -180,6 +191,7 @@ extern "C" void setup(void) {
 	param_menu.setup(&main_menu, &work, &work);
 	t12_menu.setup(&main_menu, &work, &work);
 	jbc_menu.setup(&main_menu, &work, &work);
+	gun_menu.setup(&main_menu, &work, &work);
 	main_menu.setup(&work, &work, &work);
 	about.setup(&work, &work, &debug);
 	debug.setup(&work, &work, &work);
@@ -337,9 +349,9 @@ extern "C" void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
  *
  * The temperatures are checked serially depending on jbc_phase value
  * When jbc_phase is true, the JBC temperature and Hot Air Gun temperature are checked by ADC2
- *   The result is in jbc_buff[] array: JBC temperature, Gun temperature, BC temperature
+ *   The result is in jbc_buff[] array: JBC temperature, Gun temperature
  * When jbc_phase is false, , the T12 temperature and ambient temperature are checked by ADC1
- *   The result is in t12_buff[] array: T12 temperature, Ambient temperature, T12 temperature
+ *   The result is in t12_buff[] array: T12 temperature, Ambient temperature, VREFINT, MCU internal temperature
  */
 extern "C" void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 	HAL_ADC_Stop_DMA(hadc);
@@ -370,7 +382,7 @@ extern "C" void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
 			}
 			TIM5->CCR2	= jbc_power;						// The JBC iron can be powered
 			core.updateAmbient(t12_buff[1]);				// The ambient (Hakko T12 handle sensor) temperature
-
+			core.updateIntTemp(t12_buff[2], t12_buff[3]);	// The t12_buff[2] is VREFINT, t12_buff[3] is t_mcu
 		}
 		jbc_phase = !jbc_phase;
 		tim5[tim5_cnt] = TIM5->CNT;

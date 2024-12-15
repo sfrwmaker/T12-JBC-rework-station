@@ -2,12 +2,18 @@
  * display.cpp
  *
  * 2023 JAN 04
- *  Added new parameter, status, to the DSPL::directoryShow() to show size of the current file
+ *  	Added new parameter, status, to the DSPL::directoryShow() to show size of the current file
  * 2023 MAR 01
- *   Modified the DSPL::drawTipName() to correctly draw the tip name of the lower unit
+ *   	Modified the DSPL::drawTipName() to correctly draw the tip name of the lower unit
  * 2024 SEP 07
- *  Modified DSPL::drawHGauge() method
- *  Modified DSPL::calibShow() method
+ *  	Modified DSPL::drawHGauge() method
+ *  	Modified DSPL::calibShow() method
+ * 2024 OCT 12, v.1.07
+ * 		Modified the DSPL::init(): added parameter to use IPS display type also
+ * 2024 OCT 14
+ * 		Added DSPL::drawGunStandby()
+ * 2024 NOV 05, v.1.08
+ *  	Implemented the pre-heat phase in calibration modes: modified the DSPL::calibShow() and DSPL::calibManualShow()
  */
 
 #include <string.h>
@@ -234,7 +240,7 @@ bool BRGT::adjust(void) {
 	return false;
 }
 
-void DSPL::init(void) {
+void DSPL::init(bool ips) {
 	// Allocate Bitmap for temperature string (3 symbols)
 	setFont(big_dgt_font);
 	setFontScale(2);
@@ -250,7 +256,11 @@ void DSPL::init(void) {
 	w	= getStrWidth("0000") + 2;
 	bm_adc_read	= BITMAP(w, h);
 
-	tft_ILI9341::init();									// Also setup display rotation
+	if (ips) {
+		tft_ILI9341::initIPS();								// Initialize display IPS type
+	} else {
+		tft_ILI9341::init();								// Also setup display rotation
+	}
 	BRGT::start();
 	BRGT::set(0);											// Minimum brightness
 	BRGT::on();												// Apply brightness value to the timer counter
@@ -409,6 +419,15 @@ void DSPL::drawAlternate(uint16_t t, bool active, tDevice dev_type) {
 		setFont(letter_font);
 		drawValue(t, x, iron_temp_y + bm_temp.height() + 8, align_center, active?YELLOW:BLUE);
 	}
+}
+
+void DSPL::drawGunStandby(void) {
+	const char *msg = NLS_MSG::msg(MSG_GUN_STBY);
+	setFont(letter_font);
+	uint16_t h	= getMaxCharHeight();
+	BITMAP bm(fan_pcnt_width, h);
+	strToBitmap(bm, msg, align_left, 16, true);				// true means UTF8
+	drawBitmap(0, height()-h, bm, bg_color, pr_color);
 }
 
 void DSPL::drawPower(uint8_t p, tUnitPos pos) {
@@ -691,7 +710,8 @@ void DSPL::directoryShow(const std::vector<std::string> &dir_list, uint16_t item
 	drawBitmap(left, y, bm_menu, bg_color, fg_color);
 }
 
-void DSPL::calibShow(uint8_t ref_point, uint16_t current_temp, uint16_t real_temp, bool celsius, uint8_t power, bool on, uint8_t ready_pcnt, uint8_t int_temp_pcnt) {
+void DSPL::calibShow(uint8_t ref_point, uint16_t current_temp, uint16_t real_temp, bool celsius, uint8_t power, bool on,
+		uint8_t ready_pcnt, uint8_t int_temp_pcnt, uint16_t manual_power) {
 	setFont(letter_font);
 	uint8_t fo 	= getFontTopOffset();
 	uint8_t h	= getFontHeight() + 5;						// Extra space between lines
@@ -700,7 +720,7 @@ void DSPL::calibShow(uint8_t ref_point, uint16_t current_temp, uint16_t real_tem
 	// Show reference point number
 	BITMAP bm(ref_point_width, h);
 	const char *msg = NLS_MSG::msg(MSG_REF_POINT);
-	char ref_buff[6];
+	char ref_buff[12];
 	sprintf(ref_buff, "%d", ref_point);
 	strToBitmap(bm, msg, align_left, 0, true);				// True means UTF8
 	strToBitmap(bm, ref_buff, align_right);
@@ -732,9 +752,17 @@ void DSPL::calibShow(uint8_t ref_point, uint16_t current_temp, uint16_t real_tem
 	int_temp_pcnt = constrain(int_temp_pcnt, 0, 100);
 	len = map(int_temp_pcnt, 0, 100, 0, width()-80);
 	drawHGauge(len, width()-80, 40, height()-16, gd_color);	// The gauge height is 10 pixels
+	// Show manual power supplied in prepare phase
+	bm.clear();
+	if (manual_power > 0) {
+		sprintf(ref_buff, "pwr:%3d", manual_power);
+		strToBitmap(bm, ref_buff, align_left);
+	}
+	drawBitmap(20, height()-48, bm, bg_color, fg_color);
 }
 
-void DSPL::calibManualShow(uint16_t ref_temp, uint16_t current_temp, uint16_t setup_temp, bool celsius, uint8_t power, bool on, bool ready, bool calibrated) {
+void DSPL::calibManualShow(uint16_t ref_temp, uint16_t current_temp, uint16_t setup_temp, bool celsius, uint8_t power, bool on,
+		bool ready, bool calibrated, uint16_t manual_power) {
 	setFont(letter_font);
 	uint8_t h	= getMaxCharHeight() + 5;					// Extra space between lines
 	uint16_t top = h+12;
@@ -779,17 +807,24 @@ void DSPL::calibManualShow(uint16_t ref_temp, uint16_t current_temp, uint16_t se
 		len = bar_length/2 - g_diff;						// Substract the difference from the middle point
 	}
 	len = constrain(len, 0, bar_length);
-	top = height()-30;
+	top = height()-28;
 	drawHGauge(len, bar_length, 32, top, gd_color, bar_length/2);
-	// Draw the temperature in the internal units
-	w = bm_adc_read.width();
+	// Show manual power supplied in prepare phase
+	w = getStrWidth("xxx:888") + 4;
+	BITMAP bm(w, h);
+	w = bm.width();
 	if (w > 0) {
-		char buff[6];
+		char buff[12];
+		if (manual_power > 0) {
+			sprintf(buff, "pwr:%3d", manual_power);
+			strToBitmap(bm, buff, align_left);
+		}
+		drawBitmap(20, top-h-2, bm, bg_color, fg_color);
+		// Draw the temperature in the internal units
 		sprintf(buff, "%4d", setup_temp);
-		bm_adc_read.clear();
-		strToBitmap(bm_adc_read, buff, align_center);
-		uint8_t h = bm_adc_read.height();
-		drawBitmapArea((width()-w)/2, top-h-2, w, bm_adc_read.height(), bm_adc_read, bg_color, calibrated?fg_color:gd_color);
+		bm.clear();
+		strToBitmap(bm, buff, align_center);
+		drawBitmapArea((width()-w)/2, top-h-2, w, bm.height(), bm, bg_color, calibrated?fg_color:gd_color);
 	}
 }
 

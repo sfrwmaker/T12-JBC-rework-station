@@ -4,22 +4,34 @@
  * Released Jan 7 2023
  *
  * 2023 FEB 18, v.1.01
- * 	Added POWER_HEATING mode to prevent high temperature while heating-up
- *	Changed the HOTGUN::switchPower(), HOTGUN::power() methods.
- *	Limited the relay_ready_cnt value by 7
+ *     	Added POWER_HEATING mode to prevent high temperature while heating-up
+ *		Changed the HOTGUN::switchPower(), HOTGUN::power() methods.
+ *		Limited the relay_ready_cnt value by 7
  * 2023 FEB 19, v1.01
- *  changed PID::init() call in HOTGUN::init(). The Hot Air Gun does not use the aggressive PID parameters when heat-up.
+ *  	Changed PID::init() call in HOTGUN::init(). The Hot Air Gun does not use the aggressive PID parameters when heat-up.
  * 2023 NOV 05, v1.02 (?)
- *  fixed error changed TIM11->CCR1 = fan speed to FAN_TIM.Instance->CCR1	= fan_speed; in HOTGUN::power()
+ *  	Fixed error changed TIM11->CCR1 = fan speed to FAN_TIM.Instance->CCR1	= fan_speed; in HOTGUN::power()
+ * 2024 OCT 01, 1.1.07
+ * 		Implemented the fast_cooling feature in the HOTGUN::switchPower() and HOTGUN::power()
+ * 2024 OCT 13
+ * 		Modified HOTGUN::power() to implement the low temperature mode (standby)
+ * 2024 NOV 14, v.1.08
+ * 		Modified HOTGUN::power() to shutdown the Gun immediately in cooling mode if it is not connected
+ * 		Modified HOTGUN::power() to turn the safety relay if the Fan is working correctly
+ * 		Modified HOTGUN::init() to initialize the relay_activated flag
+ * 		Modified HOTGUN::safetyRelay() to set relay_activated flag
+ * 2024 NOV 26
+ * 		Modified HOTGUN::switchPower() shutdown if fan is not connected
  *
  */
 
 #include "gun.h"
 
 void HOTGUN::init(void) {
-	mode		= POWER_OFF;								// Completely stopped, no power on fan also
-	fan_speed	= 0;
-	fix_power	= 0;
+	mode			= POWER_OFF;							// Completely stopped, no power on fan also
+	fan_speed		= 0;
+	fix_power		= 0;
+	relay_activated = false;
 	chill		= false;
 	UNIT::init(sw_avg_len, fan_off_value, fan_on_value, sw_avg_len,	sw_off_value, sw_on_value);
 	safetyRelay(false);										// Completely turn-off the power of Hot Air Gun
@@ -76,8 +88,7 @@ void HOTGUN::switchPower(bool On) {
 		case POWER_OFF:
 			if (fanSpeed() == 0) {							// No power supplied to the Fan
 				if (On)	{									// !FAN && On
-					safetyRelay(true);						// Supply AC power to the hot air gun socket
-					mode = POWER_HEATING;
+					mode = POWER_HEATING;					// Do not activate the safety relay yet, check the fan is blowing first (see HOTGUN::power())
 				}
 			} else {
 				if (On) {
@@ -108,10 +119,14 @@ void HOTGUN::switchPower(bool On) {
 		case POWER_ON:
 		case POWER_HEATING:
 		case POWER_PID_TUNE:
+		case POWER_STBY:
 			if (!On) {										// Start cooling the hot air gun
 				mode = POWER_COOLING;
 				fan_off_time = HAL_GetTick() + fan_off_timeout;
 				reach_cold_temp = false;
+				if (fast_cooling) {							// Set maximum fan speed in case of fast cooling
+					FAN_TIM.Instance->CCR1 = max_cool_fan;
+				}
 			}
 			break;
 		case POWER_FIXED:
@@ -126,7 +141,12 @@ void HOTGUN::switchPower(bool On) {
 							mode = POWER_COOLING;
 							fan_off_time = HAL_GetTick() + fan_off_timeout;
 							reach_cold_temp = false;
+							if (fast_cooling) {				// Set maximum fan speed in case of fast cooling
+								FAN_TIM.Instance->CCR1 = max_cool_fan;
+							}
 						}
+					} else {
+						shutdown();
 					}
 				}
 			} else {										// !FAN
@@ -207,6 +227,9 @@ uint16_t HOTGUN::power(void) {
 		case POWER_OFF:
 			break;
 		case POWER_HEATING:
+			if (!relay_activated && isConnected()) {		// Activate the relay if Hot Gun is connected
+				safetyRelay(true);
+			}
 		case POWER_ON:
 			FAN_TIM.Instance->CCR1	= fan_speed;
 			if (chill) {
@@ -221,12 +244,14 @@ uint16_t HOTGUN::power(void) {
 				mode = POWER_ON;
 				PID::pidStable(stable);
 			}
-			if (relay_ready_cnt > 0) {						// Relay is not ready yet
-				--relay_ready_cnt;							// Do not apply power to the HOT GUN till AC relay is ready
-				relay_ready_cnt &= 7;
-			} else {
-				p = PID::reqPower(temp_set, t);
-				p = constrain(p, 0, max_power);
+			if (relay_activated) {							// Do supply power to the heater if the relay activated (the fan is working)
+				if (relay_ready_cnt > 0) {					// Relay is not ready yet
+					--relay_ready_cnt;						// Do not apply power to the HOT GUN till AC relay is ready
+					relay_ready_cnt &= 7;
+				} else {
+					p = PID::reqPower(temp_set, t);
+					p = constrain(p, 0, max_power);
+				}
 			}
 			break;
 		case POWER_FIXED:
@@ -236,6 +261,19 @@ uint16_t HOTGUN::power(void) {
 				p = fix_power;
 			}
 			FAN_TIM.Instance->CCR1	= fan_speed;
+			break;
+		case POWER_STBY:
+			FAN_TIM.Instance->CCR1	= min_fan_speed;
+			if (chill) {
+				if (t < (low_temp - 2)) {
+					chill = false;
+					resetPID();
+				} else {
+					break;
+				}
+			}
+			p = PID::reqPower(low_temp, t);
+			p = constrain(p, 0, max_power);
 			break;
 		case POWER_COOLING:
 			if (fanSpeed() < min_fan_speed) {
@@ -248,10 +286,14 @@ uint16_t HOTGUN::power(void) {
 							fan_off_time = HAL_GetTick() + fan_extra_time;
 						}
 					} else {								// FAN && connected && !cold
-						uint16_t fan = map(avg_sync_temp, temp_gun_cold, temp_set, max_cool_fan, min_fan_speed);
-						fan = constrain(fan, min_fan_speed, max_fan_speed);
-						FAN_TIM.Instance->CCR1 = fan;
+						if (!fast_cooling) {				// Use standard cooling algorithm
+							uint16_t fan = map(avg_sync_temp, temp_gun_cold, temp_set, max_cool_fan, min_fan_speed);
+							fan = constrain(fan, min_fan_speed, max_fan_speed);
+							FAN_TIM.Instance->CCR1 = fan;
+						}
 					}
+				} else {									// No Hot Air Gun connected
+					shutdown();
 				}
 				// Here the FAN is working but the Hot Air Gun can be disconnected
 				if (fan_off_time && HAL_GetTick() >= fan_off_time) { // The fan should be turned off in specific time
@@ -300,4 +342,15 @@ void HOTGUN::safetyRelay(bool activate) {
 		HAL_GPIO_WritePin(AC_RELAY_GPIO_Port, AC_RELAY_Pin, GPIO_PIN_RESET);
 		relay_ready_cnt = 0;
 	}
+	relay_activated = activate;
+}
+
+void HOTGUN::lowPowerMode(uint16_t t) {
+    if ((mode == POWER_ON || mode == POWER_HEATING) && t < temp_set) {
+    	low_temp = t;                           			// Activate low power mode
+        chill = true;										// Stop heating, when temp reaches standby one, reset PID
+    	h_power.reset();
+    	d_power.reset();
+    	mode = POWER_STBY;
+    }
 }

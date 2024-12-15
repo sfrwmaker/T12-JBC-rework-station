@@ -4,23 +4,29 @@
  *  Created on: 10 July 2022
  *      Author: Alex
  *
- *  Sep 03 2023
+ *  2023 SEP 03
  *  	Added manage flash routines: save/load config files, load nls data
- *  Sep 08 2023, v 1.03
+ *  2023 SEP 08, v 1.03
  *  	Changed the MENU_PID::loop(): added call of auto_pid routine
+ *  2024 OCT 10, v.1.07
+ *  	Added 'display type' setup menu item to MSETUP::init() and MSETUP::loop()
+ *  2024 OCT 13
+ *  	Added MENU_GUN::init() and MENU_GUN::loop() methods
+ *  2024 NOV 05, v.1.08
+ *  	Implemented 'safe_iron_mode' menu item into MSETUP:init() and MSETUP::loop()
  *
  */
 #include "menu.h"
 
 //---------------------- The Menu mode -------------------------------------------
 MMENU::MMENU(HW* pCore, MODE *m_change_tip, MODE *m_params, MODE* m_act,
-		MODE* m_t12_menu, MODE* m_jbc_menu, MODE* m_gun_calib, MODE *m_about) : MODE(pCore) {
+		MODE* m_t12_menu, MODE* m_jbc_menu, MODE* m_gun_menu, MODE *m_about) : MODE(pCore) {
 	mode_change_tip		= m_change_tip;
 	mode_menu_setup		= m_params;
 	mode_activate_tips	= m_act;
 	mode_t12_menu		= m_t12_menu;
 	mode_jbc_menu		= m_jbc_menu;
-	mode_calib_menu		= m_gun_calib;
+	mode_gun_menu		= m_gun_menu;
 	mode_about			= m_about;
 }
 
@@ -65,12 +71,8 @@ MODE* MMENU::loop(void) {
 				return mode_t12_menu;
 			case MM_JBC_MENU:								// tune the IRON potentiometer
 				return mode_jbc_menu;
-			case MM_CALIB_GUN:								// Calibrate Hot Air Gun
-				if (mode_calib_menu) {
-					mode_calib_menu->useDevice(d_gun);
-					return mode_calib_menu;
-				}
-				break;
+			case MM_GUN_MENU:								// Calibrate Hot Air Gun
+				return mode_gun_menu;
 			case MM_RESET_CONFIG:							// Initialize the configuration
 				pCFG->clearConfig();
 				mode_menu_item = 0;							// We will not return from tune mode to this menu
@@ -99,6 +101,8 @@ void MSETUP::init(void) {
 	temp_step		= pCFG->isBigTempStep();
 	u_clock_wise	= pCFG->isUpperEncClockWise();
 	l_clock_wise	= pCFG->isLowerEncClockWise();
+	ips_display		= pCFG->isIPS();
+	safe_iron_mode	= pCFG->isSafeIronMode();
 	lang_index		= pCore->nls.languageIndex();
 	num_lang		= pCore->nls.numLanguages();
 	dspl_bright		= pCFG->getDsplBrightness();		// Brightness [0-100]
@@ -158,6 +162,12 @@ MODE* MSETUP::loop(void) {
 				case MM_G_ENC:
 					l_clock_wise = !l_clock_wise;
 					break;
+				case MM_DSPL_TYPE:
+					ips_display = !ips_display;
+					break;
+				case MM_SAFE_MODE:
+					safe_iron_mode = !safe_iron_mode;
+					break;
 				case MM_TEMP_STEP:								// Preset temperature step (1/5)
 					temp_step  = !temp_step;
 					break;
@@ -193,12 +203,11 @@ MODE* MSETUP::loop(void) {
 						}
 					}
 					pCFG->setDsplRotation(dspl_rotation);
-					pCFG->setup(buzzer, celsius, temp_step, u_clock_wise, l_clock_wise, dspl_bright);
+					pCFG->setup(buzzer, celsius, temp_step, u_clock_wise, l_clock_wise, ips_display, safe_iron_mode, dspl_bright);
 					pCFG->saveConfig();
 					pCore->u_enc.setClockWise(u_clock_wise);
 					pCore->l_enc.setClockWise(l_clock_wise);
 					pCore->buzz.activate(buzzer);
-					//pCore->dspl.rotate((tRotation)dspl_rotation);
 					mode_menu_item = 0;
 					return mode_return;
 				}
@@ -257,6 +266,12 @@ MODE* MSETUP::loop(void) {
 			break;
 		case MM_G_ENC:
 			strncpy(item_value, pD->msg((l_clock_wise)?MSG_CW:MSG_CCW), value_length);
+			break;
+		case MM_DSPL_TYPE:
+			strncpy(item_value, pD->msg((ips_display)?MSG_DSPL_IPS:MSG_DSPL_TFT), value_length);
+			break;
+		case MM_SAFE_MODE:
+			sprintf(item_value, "%3d", pCFG->tempMax(d_t12, celsius, safe_iron_mode));	// Maximum temperature is the same for both irons
 			break;
 		case MM_BRIGHT:
 			{
@@ -697,6 +712,144 @@ MODE* MENU_JBC::loop(void) {
 	}
 
 	pD->menuShow(MSG_MENU_JBC, item, item_value, modify);
+	return this;
+}
+
+//---------------------- Hot Air Gun setup menu ----------------------------------
+void MENU_GUN::init(void) {
+	CFG*	pCFG	= &pCore->cfg;
+	RENC*	pEnc	= &pCore->l_enc;
+	fast_gun_chill	= pCFG->isFastGunCooling();
+	stby_timeout	= pCFG->getOffTimeout(d_gun);
+	stby_temp		= pCFG->getLowTemp(d_gun);
+	set_param		= -1;
+	uint8_t m_len 	= pCore->dspl.menuSize(MSG_MENU_GUN);
+	uint8_t pos		= pCFG->isTipCalibrated(d_gun)?0:MG_CALIBRATE;
+	pEnc->reset(pos, 0, m_len-1, 1, 1, true);
+	update_screen = 0;
+	pCore->dspl.clear();
+	pCore->dspl.drawTitle(MSG_MENU_GUN);						// "Hot Gun setup"
+}
+
+MODE* MENU_GUN::loop(void) {
+	DSPL*	pD		= &pCore->dspl;
+	CFG*	pCFG	= &pCore->cfg;
+	RENC*	pEnc	= &pCore->l_enc;
+
+	uint8_t item 		= pEnc->read();
+	uint8_t  button		= pEnc->buttonStatus();
+
+	// Change the configuration parameters value in place
+	if (pEnc->changed() != 0) {									// The encoder has been rotated
+		switch (set_param) {									// Setup new value of the parameter in place
+			case MG_STBY_TO:									// Setup standby timeout
+				stby_timeout	= item;
+				break;
+			case MG_STANDBY_TEMP:								// Setup low power (standby) temperature
+				if (item >= min_standby_C) {
+					stby_temp = item;
+				} else {
+					stby_temp = 0;
+				}
+				break;
+			default:											// cancel
+				break;
+		}
+		update_screen = 0;										// Force to redraw the screen
+	}
+
+	// Select setup menu Item
+	if (set_param < 0) {										// Menu item (parameter) to modify was not selected yet
+		if (button > 0) {										// The button was pressed, current menu item can be selected for modification
+			switch (item) {										// item is a menu item
+				case MG_FAST_CHILL:								// Fast Hot Gun chill
+					fast_gun_chill	= !fast_gun_chill;
+					break;
+				case MG_STBY_TO:								// standby timeout
+					set_param = item;
+					pEnc->reset(stby_timeout, 0, 30, 1, 1, false);
+					break;
+				case MG_STANDBY_TEMP:							// Standby temperature
+					{
+					set_param = item;
+					uint16_t max_standby_C = pCFG->referenceTemp(0, d_gun);
+					// When encoder value is less than min_standby_C, disable standby mode
+					pEnc->reset(stby_temp, min_standby_C-1, max_standby_C, 1, 5, false);
+					break;
+					}
+				case MG_SAVE:									// save
+					pD->BRGT::dim(50);							// Turn-off the brightness, processing
+					pCFG->setupGUN(fast_gun_chill, stby_timeout, stby_temp);
+					pCFG->saveConfig();
+					return mode_return;
+				case MG_CALIBRATE:
+					if (mode_calibrate) {
+						mode_calibrate->useDevice(d_gun);
+						return mode_calibrate;
+					}
+					break;
+				default:										// cancel
+					pCFG->restoreConfig();
+					mode_menu_item = 0;
+					return mode_return;
+			}
+		}
+	} else {													// Finish modifying  parameter, return to menu mode
+		if (button == 1) {
+			item 			= set_param;
+			mode_menu_item 	= set_param;
+			set_param = -1;
+			uint8_t menu_len = pD->menuSize(MSG_MENU_GUN);
+			pEnc->reset(mode_menu_item, 0, menu_len-1, 1, 1, true);
+		}
+	}
+
+	// Prepare to modify menu item in-place using built-in editor
+	bool modify = false;
+	if (set_param >= in_place_start && set_param <= in_place_end) {
+		item = set_param;
+		modify 	= true;
+	}
+
+	if (button > 0) {											// Either short or long press
+		update_screen 	= 0;									// Force to redraw the screen
+	}
+	if (HAL_GetTick() < update_screen) return this;
+	update_screen = HAL_GetTick() + 10000;
+
+	// Build current menu item value
+	const uint8_t value_length = 20;
+	char item_value[value_length+1];
+	item_value[1] = '\0';
+	switch (item) {
+		case MG_FAST_CHILL:										// Chill the Gun at a maximum fan speed
+			strncpy(item_value, pD->msg((fast_gun_chill)?MSG_ON:MSG_OFF), value_length);
+			break;
+		case MG_STBY_TO:										// standby timeout
+			if (stby_timeout) {
+				sprintf(item_value, "%2d ", stby_timeout);
+				strncpy(&item_value[3], pD->msg(MSG_MINUTES), value_length - 3);
+			} else {
+				strncpy(item_value, pD->msg(MSG_OFF), value_length);
+			}
+			break;
+		case MG_STANDBY_TEMP:									// Standby temperature
+			if (stby_temp) {
+				if (pCFG->isCelsius()) {
+					sprintf(item_value, "%3d C", stby_temp);
+				} else {
+					sprintf(item_value, "%3d F", celsiusToFahrenheit(stby_temp));
+				}
+			} else {
+				strncpy(item_value, pD->msg(MSG_OFF), value_length);
+			}
+			break;
+		default:
+			item_value[0] = '\0';
+			break;
+	}
+
+	pD->menuShow(MSG_MENU_GUN, item, item_value, modify);
 	return this;
 }
 
