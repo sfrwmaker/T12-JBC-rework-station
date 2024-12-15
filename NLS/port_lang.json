@@ -50,10 +50,13 @@
 			"buzzer":					"Buzzer",
 			"upper encoder":			"upper encoder",
 			"lower encoder":			"lower encoder",
+			"fast gun chill":			"frio rápido GUN",
 			"temp. step":				"Incremento Temp",
 			"brightness":				"Brilho",
 			"rotation":					"rotação",
 			"language":					"Idioma",
+			"display type":				"tipo de exibição",
+			"max temperature":			"temperatura máx",
 			"tune PID":					"PID Ferro",
 			"save":						"Salvar",
 			"cancel":					"Cancelar"

@@ -59,6 +59,8 @@
 			"brightness":				"",
 			"rotation":					"",
 			"language":					"",
+			"display type":				"",
+			"max temperature":			"",
 			"tune PID":					"",
 			"save":						"",
 			"cancel":					""

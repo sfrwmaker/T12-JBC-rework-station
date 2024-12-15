@@ -55,10 +55,13 @@
 			"buzzer":					"зуммер",
 			"upper encoder":			"верхний энкодер",
 			"lower encoder":			"нижний энкодер",
+			"fast gun chill":			"быстр. охл. фена",
 			"temp. step":				"шаг температуры",
 			"brightness":				"яркость",
 			"rotation":					"поворот",
 			"language":					"язык",
+			"display type":				"тип экрана",
+			"max temperature":			"макс. температура",
 			"tune PID":					"настройка ПИД",
 			"save":						"сохранить",
 			"cancel":					"отмена"

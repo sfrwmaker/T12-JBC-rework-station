@@ -55,10 +55,13 @@
 			"buzzer": 				"Buzzer",
 			"upper encoder": 		"górny encoder",
 			"lower encoder": 		"dolny encoder",
+			"fast gun chill":		"szybkie ochłodzenie hot-air",
 			"temp. step": 			"Skok temperatury",
 			"brightness": 			"Jasność",
 			"rotation": 			"obrót",
 			"language": 			"Język",
+			"display type":			"typ wyświetlacza",
+			"max temperature":		"maks. temperatura",
 			"tune PID": 			"tune PID",
 			"save": 				"Zapisać",
 			"cancel": 				"Anuluj"
