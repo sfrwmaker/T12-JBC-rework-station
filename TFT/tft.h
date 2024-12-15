@@ -3,6 +3,12 @@
  *
  *  Created on: 4 Nov 2022
  *      Author: Alex
+ *
+ *  2024 MAY 22
+ *  	Moved the bitmap & pixmap methods inside corresponding classes
+ *
+ *  2024 AUG 02
+ *  	Added ILI9341v support, i.e. tft_ILI9341v class
  */
 
 #ifndef _TFT_H_
@@ -15,10 +21,14 @@
 #include "ILI9488.h"
 #include "ST7735.h"
 #include "ST7796.h"
+#include "NT35510.h"
+#include "SSD1963.h"
+
 
 #ifdef __cplusplus
 #include "bitmap.h"
 #include "pixmap.h"
+#include "region.h"
 
 #define BUFFER_SIZE 	(32)
 
@@ -120,17 +130,27 @@ class tft : public u8gFont {
 		uint16_t 	color(uint8_t red, uint8_t green, uint8_t blue)
 															{ return TFT_Color(red, green, blue);							}
 		uint16_t 	wheelColor(uint8_t wheel_pos)			{ return TFT_WheelColor(wheel_pos);								}
+		void		touchAdjustRoration(uint16_t *x, uint16_t *y)
+															{ TFT_Touch_Adjust_Rotation_XY(x, y);							}
 #ifdef TFT_BMP_JPEG_ENABLE
-		bool		drawBMP(const char *filename, int16_t x, int16_t y)
-															{ return TFT_DrawBMP(filename, x, y);							}
+		uint32_t	BMPsize(const char *filename)			{ return TFT_BMPsize(filename);				 					}
+		bool		drawBMP(const char *filename, uint16_t bmp_x, uint16_t bmp_y)
+															{ return TFT_ClipBMP(filename, 0, 0, TFT_Width(), TFT_Height(), bmp_x, bmp_y); }
+		bool		clipBMP(const char *filename, uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t bmp_x, uint16_t bmp_y)
+															{ return TFT_ClipBMP(filename, x, y, width, height, bmp_x, bmp_y); }
+		bool		drawIconOverBMP(const char *filename, uint16_t bmp_x, uint16_t bmp_y, uint16_t x, uint16_t y, uint16_t width, uint16_t height,
+						const uint8_t *bitmap, uint16_t bm_width, uint16_t txt_color)
+															{ return TFT_ScrollBitmapOverBMP(filename, bmp_x, bmp_y, x, y, width, height,
+																bitmap, bm_width, 0, 0, txt_color); 						}
+		bool		drawBitmapOverBMP(const char *filename, uint16_t bmp_x, uint16_t bmp_y, uint16_t x, uint16_t y, uint16_t width, uint16_t height, BITMAP &bm, uint16_t txt_color)
+															{ return TFT_ScrollBitmapOverBMP(filename, bmp_x, bmp_y, x, y, width, height,
+																		bm.bitmap(), bm.width(), 0, 0, txt_color); 			}
+		bool		scrollBitmapOverBMP(const char *filename, uint16_t bmp_x, uint16_t bmp_y, uint16_t x, uint16_t y, uint16_t width, uint16_t height,
+						BITMAP &bm, int16_t offset, uint8_t gap, uint16_t txt_color)
+															{ return TFT_ScrollBitmapOverBMP(filename, bmp_x, bmp_y, x, y, width, height,
+																bm.bitmap(), bm.width(), offset, gap, txt_color); 			}
 		bool		drawJPEG(const char *filename, int16_t x, int16_t y)
 															{ return TFT_DrawJPEG(filename, x, y);							}
-		bool 		clipBMP(const char *filename, int16_t x, int16_t y, uint16_t area_x, uint16_t area_y, uint16_t area_width, uint16_t area_height)
-															{ return TFT_ClipBMP(filename, x, y, area_x, area_y, area_width, area_height); }
-		bool 		scrollBitmapOverBMP(const char *filename, int16_t x, int16_t y, uint16_t area_x, uint16_t area_y,
-						uint16_t area_width, uint16_t area_height, BITMAP& bm, int16_t offset, uint8_t gap, uint16_t txt_color)
-															{ return TFT_ScrollBitmapOverBMP(filename, x, y, area_x, area_y, area_width, area_height,
-																bm.bitmap(), bm.width(), offset, gap, txt_color);			}
 		bool 		clipJPEG(const char *filename, int16_t x, int16_t y, uint16_t area_x, uint16_t area_y, uint16_t area_width, uint16_t area_height)
 															{ return TFT_ClipJPEG(filename, x, y, area_x, area_y, area_width, area_height);}
 // drawJPEG() allocates and frees buffer for jpeg processing in memory automatically for each file if this buffer was not allocated before
@@ -158,6 +178,7 @@ class tft_ILI9341: public tft {
 		tft_ILI9341()	: tft()								{ }
 		virtual 		~tft_ILI9341()						{ }
 		virtual	void	init(void)							{ ILI9341_Init();												}
+		void			initIPS(void)						{ ILI9341v_Init();												}
 };
 
 class tft_ILI9488: public tft {
@@ -165,8 +186,22 @@ class tft_ILI9488: public tft {
 		tft_ILI9488()	: tft()								{ }
 		virtual			~tft_ILI9488()						{ }
 		virtual	void	init(void)							{ ILI9488_Init();												}
+		void			initIPS(void)						{ ILI9488_IPS_Init();											}
 };
 
+class tft_NT35510: public tft {
+	public:
+		tft_NT35510()	: tft()								{ }
+		virtual			~tft_NT35510()						{ }
+		virtual	void	init(void)							{ NT35510_Init();												}
+};
+
+class tft_SSD1963: public tft {
+	public:
+		tft_SSD1963()	: tft()								{ }
+		virtual			~tft_SSD1963()						{ }
+		virtual	void	init(void)							{ SSD1963_Init();												}
+};
 #endif	// __cplusplus
 
 #endif

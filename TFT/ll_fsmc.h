@@ -20,6 +20,11 @@ extern "C" {
 
 void 		TFT_FSMC_Reset(void);
 void		TFT_FSMC_Command(uint8_t cmd, const uint8_t* buff, size_t buff_size);
+void		TFT_FSMC_NT35510_Command(uint8_t cmd, const uint8_t* buff, size_t buff_size);
+void		TFT_FSMC_DrawPixel_16bits(uint16_t x,  uint16_t y, uint16_t color);
+void		TFT_FSMC_DrawPixel_18bits(uint16_t x,  uint16_t y, uint16_t color);
+void		TFT_FSMC_HIGH_DrawPixel_16bits(uint16_t x,  uint16_t y, uint16_t color);
+void		TFT_FSMC_HIGH_DrawPixel_18bits(uint16_t x,  uint16_t y, uint16_t color);
 void		TFT_FSMC_DATA_MODE(void);
 bool		TFT_FSMC_ReadData(uint8_t cmd, uint8_t *data, uint16_t size);
 void		TFT_FSMC_ColorBlockInit(void);

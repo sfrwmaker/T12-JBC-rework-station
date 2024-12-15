@@ -86,6 +86,13 @@ void		TFT_DrawfilledTriangle (uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1
 void		TFT_DrawEllipse(uint16_t x0, uint16_t y0, uint16_t rx, uint16_t ry, uint16_t color);
 void		TFT_DrawFilledEllipse(uint16_t x0, uint16_t y0, uint16_t rx, uint16_t ry, uint16_t color);
 void		TFT_DrawArea(uint16_t x0, uint16_t y0, uint16_t area_width, uint16_t area_height, t_NextPixel nextPixelCB);
+void		TFT_BM_Clear(uint8_t *bitmap, uint32_t size);
+void		TFT_BM_DrawPixel(uint8_t *bitmap, uint16_t bm_width, uint16_t bm_height, uint16_t x, uint16_t y);
+uint8_t		TFT_BM_Pixel(const uint8_t *bitmap, uint16_t bm_width, uint16_t bm_height, uint16_t x, uint16_t y);
+void		TFT_BM_DrawHLine(uint8_t *bitmap, uint16_t bm_width, uint16_t bm_height, uint16_t x, uint16_t y, uint16_t length);
+void		TFT_BM_DrawVLine(uint8_t *bitmap, uint16_t bm_width, uint16_t bm_height, uint16_t x, uint16_t y, uint16_t length);
+void		TFT_BM_JoinIcon(uint8_t *bitmap, uint16_t bm_width, uint16_t bm_height, uint16_t x, uint16_t y, const uint8_t *icon, uint16_t ic_width, uint16_t ic_height);
+void		TFT_BM_DrawVGauge(uint8_t *bitmap, uint16_t bm_width, uint16_t bm_height, uint16_t gauge, uint8_t edged);
 void		TFT_DrawBitmap(uint16_t x0, uint16_t y0, uint16_t area_width, uint16_t area_height,
 				const uint8_t *bitmap, uint16_t bm_width, uint16_t bg_color, uint16_t fg_color);
 void		TFT_DrawScrolledBitmap(uint16_t x0, uint16_t y0, uint16_t area_width, uint16_t area_height,
@@ -94,6 +101,9 @@ void 		TFT_DrawPixmap(uint16_t x0, uint16_t y0, uint16_t area_width, uint16_t ar
 				const uint8_t *pixmap, uint16_t pm_width, uint8_t depth, uint16_t palette[]);
 void		TFT_DrawThickLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint8_t thickness, uint16_t color);
 void		TFT_DrawVarThickLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, LineThickness thickness, uint16_t color);
+
+// Convert touch coordinates according with rotation. Use with FT6x36 capacitive touch screen.
+void		TFT_Touch_Adjust_Rotation_XY(uint16_t *x, uint16_t *y);
 
 // Functions to setup display
 void		TFT_Setup(uint16_t generic_width, uint16_t generic_height, uint8_t madctl[4]);

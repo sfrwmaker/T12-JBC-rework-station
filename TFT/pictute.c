@@ -3,6 +3,8 @@
  *
  *  Created on: May 27 2020
  *      Author: Alex
+ *  2023 FEB 26
+ *   Initialized *work with 0
  */
 
 #include "common.h"
@@ -17,6 +19,14 @@
 #include <stdlib.h>
 #include "ff.h"
 #include "tjpgd.h"
+
+// BMP staff
+typedef struct {
+	uint32_t	offset;							// Start of image data
+	int			width;							// BMP picture width
+	int			height;							// BMP picture height. Can be less than zero if flipped
+	uint8_t		bpp;							// Bytes per pixel
+} BMP_INFO;
 
 // Forward function declaration
 static uint16_t readJpeg(JDEC* jd, uint8_t* buff, uint16_t nbytes);
@@ -45,7 +55,7 @@ static uint16_t readPixel(uint8_t *ptr, uint8_t bpp);
  */
 
 static const uint16_t work_buff_size = 3100;	// Working area buffer size
-static void		*work;							// Working area buffer for TJPEG routines, should be allocated by jpegAllocate()
+static void		*work	= 0;					// Working area buffer for TJPEG routines, should be allocated by jpegAllocate()
 static JRECT	area;							// Clip area used by TFT_ClipJpeg()
 
  // Initialize jpeg structures. Should be called once
@@ -206,16 +216,6 @@ static uint16_t u16min(uint16_t a, uint16_t b) {
 	return (a<b)?a:b;
 }
 
-
-// BMP staff
-
-typedef struct {
-	uint32_t	offset;							// Start of image data
-	int			width;							// BMP picture width
-	int			height;							// BMP picture height. Can be less than zero if flipped
-	uint8_t		bpp;							// Bytes per pixel
-} BMP_INFO;
-
 static bool BMP_info(FIL *bmp_file, BMP_INFO *bi) {
 	// Parse BMP header
 	uint8_t bmp_header[34];
@@ -244,12 +244,12 @@ static bool BMP_info(FIL *bmp_file, BMP_INFO *bi) {
 
 // Draw content of BMP file in rectangular area (x, y) having width = w, height = h
 // Upper-Left point of BMP file is (ulx, uly)
-static bool drawBMPContent(FIL *bmp_file, BMP_INFO *bi, uint16_t x, uint16_t y, uint16_t w, uint16_t h, int16_t ULx, int16_t ULy) {
+static bool drawBMPContent(FIL *bmp_file, BMP_INFO *bi, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t ULx, uint16_t ULy) {
 
-	uint8_t *scanline = malloc(w*bi->bpp);	// Buffer to read whole scanline
-	bool flip = true;						// BMP is stored bottom-to-top
+	uint8_t *scanline = malloc(w*bi->bpp);		// Buffer to read whole scanline
+	bool flip = true;							// BMP is stored bottom-to-top
 	int bmp_height = bi->height;
-	if (bmp_height < 0) {					// If bmpHeight is negative, image is in top-down order.
+	if (bmp_height < 0) {						// If bmpHeight is negative, image is in top-down order.
 		bmp_height = -bmp_height;
 		flip      = false;
 	}
@@ -257,20 +257,19 @@ static bool drawBMPContent(FIL *bmp_file, BMP_INFO *bi, uint16_t x, uint16_t y, 
 	// BMP rows are padded (if needed) to 4-byte boundary
 	uint32_t row_size = (bi->width * bpp + 3) & ~3;
 
-	// Set TFT address window to clipped image bounds
 	TFT_StartDrawArea(x, y, w, h);
 
-	for (uint32_t row = 0; row < h; ++row) { // For each scanline...
+	for (uint32_t row = 0; row < h; ++row) { 	// For each scanline...
 		// Seek to start of scan line.  It might seem labor-intensive to be doing this on every line, but this
 		// method covers a lot of gritty details like cropping and scanline padding.  Also, the seek only takes
 		// place if the file position actually needs to change (avoids a lot of cluster math in SD library).
 		uint32_t pos = 0;
-		if (flip)							// Bitmap is stored bottom-to-top order (normal BMP)
+		if (flip)								// Bitmap is stored bottom-to-top order (normal BMP)
 			pos = bi->offset + (bmp_height - 1 - (row + ULy)) * row_size;
-		else								// Bitmap is stored top-to-bottom
+		else									// Bitmap is stored top-to-bottom
 			pos = bi->offset + (row + ULy) * row_size;
-		pos += ULx * bpp;					// Factor in starting column (bx1)
-		if (bmp_file->fptr != pos) {		// Need seek?
+		pos += ULx * bpp;						// Factor in starting column (bx1)
+		if (bmp_file->fptr != pos) {			// Need seek?
 			f_lseek(bmp_file, pos);
 		}
 
@@ -285,8 +284,8 @@ static bool drawBMPContent(FIL *bmp_file, BMP_INFO *bi, uint16_t x, uint16_t y, 
 			for (uint32_t col = 0; col < w*bpp; col += bpp) { // For each pixel...
 				uint16_t color = readPixel(&scanline[col], bpp);
 				TFT_ColorBlockSend(color, 1);
-			}								// end pixel
-		} else {							// Failed to allocate memory for scanline, read data by one pixel
+			}									// end pixel
+		} else {								// Failed to allocate memory for scanline, read data by one pixel
 			for (uint32_t col = 0; col < w; ++col) { // For each pixel...
 				uint8_t clr[3];
 				if (FR_OK != f_read(bmp_file, clr, bpp, &bytes_read)) {
@@ -295,23 +294,86 @@ static bool drawBMPContent(FIL *bmp_file, BMP_INFO *bi, uint16_t x, uint16_t y, 
 				}
 				uint16_t color = readPixel(clr, bpp);
 				TFT_ColorBlockSend(color, 1);
-			}								// end pixel
+			}									// end pixel
 		}
-	}										// end scanline
-	TFT_FinishDrawArea(); 					// End last TFT transaction
+	}											// end scanline
+	TFT_FinishDrawArea(); 						// End last TFT transaction
 	if (scanline) free(scanline);
 	return true;
 }
 
-static bool scrollOnBMP(FIL *bmp_file, BMP_INFO *bi, uint16_t x, uint16_t y, uint16_t w, uint16_t h, int16_t ULx, int16_t ULy,
+// Load content of BMP file into memory region having width = w and height = h.
+// Upper-Left point of BMP file is (ULx, ULy).
+// Put this point into (x,y) position of the region
+// If use_transparent is true, do not copy transparent color into region
+static bool loadBMPContent(FIL *bmp_file, BMP_INFO *bi, uint16_t region[],
+	uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t ULx, uint16_t ULy, uint16_t transparent, bool use_transparent) {
+
+	uint8_t *scanline = malloc(w*bi->bpp);		// Buffer to read whole scanline
+	bool flip = true;							// BMP is stored bottom-to-top
+	int bmp_height = bi->height;
+	if (bmp_height < 0) {						// If bmpHeight is negative, image is in top-down order.
+		bmp_height = -bmp_height;
+		flip      = false;
+	}
+	uint8_t bpp = bi->bpp;
+	// BMP rows are padded (if needed) to 4-byte boundary
+	uint32_t row_size = (bi->width * bpp + 3) & ~3;
+
+	for (uint32_t row = y; row < h; ++row) { 	// For each scanline...
+		// Seek to start of scan line.  It might seem labor-intensive to be doing this on every line, but this
+		// method covers a lot of gritty details like cropping and scanline padding.  Also, the seek only takes
+		// place if the file position actually needs to change (avoids a lot of cluster math in SD library).
+		uint32_t pos = 0;
+		if (flip)								// Bitmap is stored bottom-to-top order (normal BMP)
+			pos = bi->offset + (bmp_height - 1 - (row + ULy)) * row_size;
+		else									// Bitmap is stored top-to-bottom
+			pos = bi->offset + (row + ULy) * row_size;
+		pos += ULx * bpp;						// Factor in starting column (bx1)
+		if (bmp_file->fptr != pos) {			// Need seek?
+			f_lseek(bmp_file, pos);
+		}
+		uint16_t r_pos = row * w + x;			// line starting position of the region
+
+		// Read whole scanline
+		UINT bytes_read = 0;
+		if (scanline) {
+			if (FR_OK != f_read(bmp_file, scanline, w*bpp, &bytes_read)) {
+				free(scanline);
+				return false;
+			}
+			for (uint32_t col = 0; col < (w-x)*bpp; col += bpp) { // For each pixel...
+				uint16_t color = readPixel(&scanline[col], bpp);
+				if (!use_transparent || color != transparent)
+					region[r_pos] = color;
+				++r_pos;
+			}									// end pixel
+		} else {								// Failed to allocate memory for scanline, read data by one pixel
+			for (uint32_t col = 0; col < w-x; ++col) { // For each pixel...
+				uint8_t clr[3];
+				if (FR_OK != f_read(bmp_file, clr, bpp, &bytes_read)) {
+					return false;
+				}
+				uint16_t color = readPixel(clr, bpp);
+				if (!use_transparent || color != transparent)
+					region[r_pos] = color;
+				++r_pos;
+			}									// end pixel
+		}
+	}											// end scanline
+	if (scanline) free(scanline);
+	return true;
+}
+
+static bool scrollOnBMP(FIL *bmp_file, BMP_INFO *bi, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t ULx, uint16_t ULy,
 		const uint8_t *bitmap, uint16_t bm_width, int16_t offset, uint8_t gap, uint16_t txt_color) {
 
-	uint8_t *scanline = malloc(w*bi->bpp);	// Buffer to read whole scanline
+	uint8_t *scanline = malloc(w*bi->bpp);		// Buffer to read whole scanline
 	if (!scanline) return false;
 
-	bool flip = true;						// BMP is stored bottom-to-top
+	bool flip = true;							// BMP is stored bottom-to-top
 	int bmp_height = bi->height;
-	if (bmp_height < 0) {					// If bmpHeight is negative, image is in top-down order.
+	if (bmp_height < 0) {						// If bmpHeight is negative, image is in top-down order.
 		bmp_height = -bmp_height;
 		flip      = false;
 	}
@@ -329,12 +391,12 @@ static bool scrollOnBMP(FIL *bmp_file, BMP_INFO *bi, uint16_t x, uint16_t y, uin
     	uint16_t out_bit = 0;					// Number of bits were pushed out
 
     	uint32_t pos = 0;
-		if (flip)							// Bitmap is stored bottom-to-top order (normal BMP)
+		if (flip)								// Bitmap is stored bottom-to-top order (normal BMP)
 			pos = bi->offset + (bmp_height - 1 - (row + ULy)) * row_size;
-		else								// Bitmap is stored top-to-bottom
+		else									// Bitmap is stored top-to-bottom
 			pos = bi->offset + (row + ULy) * row_size;
-		pos += ULx * bpp;					// Factor in starting column (bx1)
-		if (bmp_file->fptr != pos) {		// Need seek?
+		pos += ULx * bpp;						// Factor in starting column (bx1)
+		if (bmp_file->fptr != pos) {			// Need seek?
 			f_lseek(bmp_file, pos);
 		}
 
@@ -346,7 +408,7 @@ static bool scrollOnBMP(FIL *bmp_file, BMP_INFO *bi, uint16_t x, uint16_t y, uin
 			return false;
 		}
 
-    	if (offset < 0) {					// Negative offset means bitmap should be shifted right
+    	if (offset < 0) {						// Negative offset means bitmap should be shifted right
     		// Fill-up left side with background color
     		out_bit = abs(offset);
     		if (out_bit > w) out_bit = w;
@@ -355,45 +417,38 @@ static bool scrollOnBMP(FIL *bmp_file, BMP_INFO *bi, uint16_t x, uint16_t y, uin
 				TFT_ColorBlockSend(color, 1);
 			}
     	}
-    	// Send bitmap row
-    	for (uint16_t bit = (offset > 0)?offset:0; bit < bm_width; ++bit) {
-    		if (out_bit >= w)				// row is over
-    			break;
-    		uint16_t in_byte = row * bytes_per_row + (bit >> 3);
-    		uint8_t  in_mask = 0x80 >> (bit & 0x7);
-    		uint16_t color 	 = (in_mask & bitmap[in_byte])?txt_color:readPixel(&scanline[out_bit*bpp], bpp);
-    		TFT_ColorBlockSend(color, 1);
-    		++out_bit;
-    	}
-    	if (gap == 0) {						// Not looped bitmap. Fill-up rest area with background image
-    		if (w > out_bit) {
-    			for (uint32_t col = out_bit*bpp; col < w*bpp; col += bpp) { // For each pixel...
-    				uint16_t color = readPixel(&scanline[col], bpp);
-    				TFT_ColorBlockSend(color, 1);
-    			}
-    		}
-    		break;							// row is over
-    	} else {							// Looped bitmap
-    		uint8_t bg_bits = gap;			// Draw the gap between looped bitmap images
-    		if (w > out_bit) {				// There is a place to draw
-    		    if (bg_bits > (w - out_bit))
-    		    	bg_bits = w - out_bit;
-    		    for (uint16_t i = 0; i < bg_bits; ++i) {
-    		    	uint16_t color = readPixel(&scanline[out_bit*bpp], bpp);
-    		    	TFT_ColorBlockSend(color, 1);
-    		    	++out_bit;
-    		    }
-    		}
-    		// Start over the bitmap
-    		for (uint16_t bit = 0; bit < bm_width; ++bit) {
-    			if (out_bit >= w)			// row is over
-    				break;
-    			uint16_t in_byte = row * bytes_per_row + (bit >> 3);
-    			uint8_t  in_mask = 0x80 >> (bit & 0x7);
-    			uint16_t color = (in_mask & bitmap[in_byte])?txt_color:readPixel(&scanline[out_bit*bpp], bpp);
-    			TFT_ColorBlockSend(color, 1);
-    			++out_bit;
-    		}
+    	int16_t bitmap_offset = offset;				// The bitmap offset is actual on the first while() loop only
+    	while (out_bit < w) {						// The bitmap can fit the region several times
+			for (uint16_t bit = (bitmap_offset > 0)?bitmap_offset:0; bit < bm_width; ++bit) {
+				if (out_bit >= w)					// row is over
+					break;
+				uint16_t in_byte = row * bytes_per_row + (bit >> 3);
+				uint8_t  in_mask = 0x80 >> (bit & 0x7);
+				uint16_t color 	 = (in_mask & bitmap[in_byte])?txt_color:readPixel(&scanline[out_bit*bpp], bpp);
+				TFT_ColorBlockSend(color, 1);
+				++out_bit;
+			}
+			bitmap_offset = 0;						// The bitmap offset is actual on the first while() loop only
+			if (gap == 0) {							// Not looped bitmap. Fill-up rest area with background image
+				if (w > out_bit) {
+					for (uint32_t col = out_bit*bpp; col < w*bpp; col += bpp) { // For each pixel...
+						uint16_t color = readPixel(&scanline[col], bpp);
+						TFT_ColorBlockSend(color, 1);
+					}
+				}
+				break;								// row is over
+			} else {								// Looped bitmap
+				uint8_t bg_bits = gap;				// Draw the gap between looped bitmap images
+				if (w > out_bit) {					// There is a place to draw
+					if (bg_bits > (w - out_bit))
+						bg_bits = w - out_bit;
+					for (uint16_t i = 0; i < bg_bits; ++i) {
+						uint16_t color = readPixel(&scanline[out_bit*bpp], bpp);
+						TFT_ColorBlockSend(color, 1);
+						++out_bit;
+					}
+				}
+			}
     	}
     }
     // Send rest data from the buffer
@@ -402,67 +457,31 @@ static bool scrollOnBMP(FIL *bmp_file, BMP_INFO *bi, uint16_t x, uint16_t y, uin
 	return true;
 }
 
-// Draws BMP file image at the given coordinates.
-// Both coordinates can be less than zero. In this case, top-left area will be clipped
-// Only two BMP formats are supported: 24-bit per pixel, not-compressed and 16-bit per pixel R5-G6-B5
-// For best performance, save BMP file as 16-bits R6-G5-B6 format and flipped row order
-bool TFT_DrawBMP(const char *filename, int16_t x, int16_t y) {
-	FIL			bmp_file;
-	if ((x >= TFT_Width()) || (y >= TFT_Height())) return false;
-
-	// Open requested file
+uint32_t TFT_BMPsize(const char *filename) {
+	uint32_t res = 0;
+	FIL	bmp_file;
 	if (FR_OK != f_open(&bmp_file, filename, FA_READ))
-		return false;
-	bool ret = false;
+		return res;
 
 	// Parse BMP header
 	BMP_INFO bi;
 	if (BMP_info(&bmp_file, &bi)) {
-		int bmp_height = bi.height;
-		if (bmp_height < 0) {					// If bmpHeight is negative, image is in top-down order.
-			bmp_height = -bmp_height;
-		}
-
-		// Crop area to be loaded
-		int x2 = x + bi.width  - 1;				// Lower-right corner
-		int y2 = y + bmp_height - 1;
-		if ((x2 >= 0) && (y2 >= 0)) {			// On screen?
-			int w = bi.width;					// Width/height of section to load/display
-			int h = bmp_height;
-			int ulx = 0;						// Upper-Left coordinate in BMP file
-			int uly = 0;
-			if (x < 0) {						// Clip left
-				ulx = -x;
-				x   = 0;
-				w   = x2 + 1;
-			}
-			if (y < 0) {						// Clip top
-				uly = -y;
-				y   = 0;
-				h   = y2 + 1;
-			}
-			if (x2 >= TFT_Width())  w = TFT_Width()  - x; // Clip right
-			if (y2 >= TFT_Height()) h = TFT_Height() - y; // Clip bottom
-
-			ret = drawBMPContent(&bmp_file, &bi, x, y, w, h, ulx, uly);
-		}
+		res = bi.width << 16 | abs(bi.height);
 	}
 	f_close(&bmp_file);
-	return ret;
+	return res;
 }
 
-// Draw clipped BMP file image. Put Upper-Left corner of BMP image to (x, y)
-// and draw only a rectangular area with coordinates (area_x, area_y) and size of area_width, area_height
+// Draw clipped BMP file image at (x, y) position on the screen. Start reading BMP image from (bmp_x, bmp_y) top-left corner
+// and draw only a rectangular area with size of width and height
 // Only two BMP formats are supported: 24-bit per pixel, not-compressed and 16-bit per pixel R5-G6-B5
-bool TFT_ClipBMP(const char *filename, int16_t x, int16_t y, uint16_t area_x, uint16_t area_y, uint16_t area_width, uint16_t area_height) {
+bool TFT_ClipBMP(const char *filename, uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint16_t bmp_x, uint16_t bmp_y) {
 	FIL			bmp_file;
 	uint16_t scr_width 	= TFT_Width();
 	uint16_t scr_height	= TFT_Height();
-	if (x >= scr_width || y >= scr_height ||
-		area_x > scr_width || area_height > scr_width ||
-		(area_x + area_width) > scr_width || (area_y + area_height) > scr_height ||
-		area_width < 1 || area_height < 1)
-		return false;
+	if (x >= scr_width || y >= scr_height || width < 1 || height < 1) return false;
+	if (x + width  > scr_width)  width  = scr_width  - x;
+	if (y + height > scr_height) height = scr_height - y;
 
 	// Open requested file
 	if (FR_OK != f_open(&bmp_file, filename, FA_READ))
@@ -477,8 +496,8 @@ bool TFT_ClipBMP(const char *filename, int16_t x, int16_t y, uint16_t area_x, ui
 			bmp_height = -bmp_height;
 		}
 		// Check that BMP file can cover up the drawing area completely
-		if (x <= area_x && y <= area_y && bi.width >= (area_x - x + area_width) && bmp_height >= (area_y - y + area_height)) {
-			ret = drawBMPContent(&bmp_file, &bi, area_x, area_y, area_width, area_height, area_x - x, area_y - y);
+		if (bi.width - bmp_x >= width && bmp_height - bmp_y >= height) {
+			ret = drawBMPContent(&bmp_file, &bi, x, y, width, height, bmp_x, bmp_y);
 		}
 	}
 	f_close(&bmp_file);
@@ -486,16 +505,15 @@ bool TFT_ClipBMP(const char *filename, int16_t x, int16_t y, uint16_t area_x, ui
 }
 
 // Draw scrolled bitmap on BMP background
-bool TFT_ScrollBitmapOverBMP(const char *filename, int16_t x, int16_t y, uint16_t area_x, uint16_t area_y, uint16_t area_width, uint16_t area_height,
+bool TFT_ScrollBitmapOverBMP(const char *filename, uint16_t bmp_x, uint16_t bmp_y, uint16_t x, uint16_t y, uint16_t width, uint16_t height,
 		const uint8_t *bitmap, uint16_t bm_width, int16_t offset, uint8_t gap, uint16_t txt_color) {
 
 	FIL			bmp_file;
 	uint16_t scr_width 	= TFT_Width();
 	uint16_t scr_height	= TFT_Height();
-	if (x >= scr_width || y >= scr_height || area_x > scr_width || area_height > scr_width ||
-		(area_x + area_width) > scr_width || (area_y + area_height) > scr_height ||
-		area_width < 1 || area_height < 1 || bm_width < 1 || !bitmap)
-		return false;
+	if (x >= scr_width || y >= scr_height || width < 1 || height < 1) return false;
+		if (x + width  > scr_width)  width  = scr_width  - x;
+		if (y + height > scr_height) height = scr_height - y;
 	while (offset >= bm_width) offset -= bm_width + gap;
 
 	// Open requested file
@@ -507,18 +525,159 @@ bool TFT_ScrollBitmapOverBMP(const char *filename, int16_t x, int16_t y, uint16_
 	BMP_INFO bi;
 	if (BMP_info(&bmp_file, &bi)) {
 		int bmp_height = bi.height;
-		if (bmp_height < 0) {					// If bmpHeight is negative, image is in top-down order.
+		if (bmp_height < 0) {					// If bmp Height is negative, image is in top-down order.
 			bmp_height = -bmp_height;
 		}
 		// Check that BMP file can cover up the drawing area completely
-		if (x <= area_x && y <= area_y && bi.width >= (area_x - x + area_width) && bmp_height >= (area_y - y + area_height)) {
-			ret = scrollOnBMP(&bmp_file, &bi, area_x, area_y, area_width, area_height, area_x - x, area_y - y, bitmap, bm_width, offset, gap, txt_color);
+		if (bi.width - bmp_x >= width && bmp_height - bmp_y >= height) {
+			ret = scrollOnBMP(&bmp_file, &bi, x, y, width, height, bmp_x, bmp_y, bitmap, bm_width, offset, gap, txt_color);
 		}
 	}
 	f_close(&bmp_file);
 	return ret;
 }
 
+// Load BMP file image starting at (bmp_x, bmp_y) point to the memory region.
+// If bmp_x < 0 or bmp_y < 0, shift BMP image right and down respectively
+// The memory region has dimensions rw and rh pixels
+// If use_transparent is true, do not load the transparent color from BMP file
+// Only two BMP formats are supported: 24-bit per pixel, not-compressed and 16-bit per pixel R5-G6-B5
+// For best performance, save BMP file as 16-bits R6-G5-B6 format and flipped row order
+bool TFT_LoadBMP(uint16_t region[], uint16_t rw, uint16_t rh, const char *filename, int16_t bmp_x, int16_t bmp_y,
+		uint16_t transparent, bool use_transparent) {
+	FIL	bmp_file;
+	if (rw < 1 || rh < 1) return false;
+
+	// Open requested file
+	if (FR_OK != f_open(&bmp_file, filename, FA_READ))
+		return false;
+	bool ret = false;
+
+	// Parse BMP header
+	BMP_INFO bi;
+	if (BMP_info(&bmp_file, &bi)) {
+		int bmp_height = bi.height;
+		if (bmp_height < 0) {					// If bmpHeight is negative, image is in top-down order.
+			bmp_height = -bmp_height;
+		}
+		uint16_t x = 0;
+		if (bmp_x < 0) {
+			x		= abs(bmp_x);
+			bmp_x	= 0;
+		}
+		uint16_t y = 0;
+		if (bmp_y < 0) {
+			y		= abs(bmp_y);
+			bmp_y	= 0;
+		}
+		// Check that BMP file can cover up the drawing area completely
+		if (bi.width - bmp_x - x >= rw && bmp_height - bmp_y - y >= rh) {
+			ret = loadBMPContent(&bmp_file, &bi, region, x, y, rw, rh, bmp_x, bmp_y, transparent, use_transparent);
+		}
+	}
+	f_close(&bmp_file);
+	return ret;
+}
+
+void TFT_DrawRegion(uint16_t x, uint16_t y, uint16_t region[], uint16_t rw, uint16_t rh) {
+	if (!region || rw == 0 || rh == 0) return;
+	if (y + rh >= TFT_Height())					// The region out of the screen height
+		rh = TFT_Height() - y;
+	if (x + rw < TFT_Width()) {					// The whole region can fin the display
+		TFT_StartDrawArea(x, y, rw, rh);
+		for (uint32_t i = 0; i < rw * rh; ++i)
+			TFT_ColorBlockSend(region[i], 1);
+	} else {
+		uint16_t area_width = TFT_Width() - x;	// Clip the region
+		TFT_StartDrawArea(x, y, area_width, rh);
+		for (uint16_t row = 0; row < rh; ++row) {
+			uint16_t row_pos = row * rw;
+			for (uint16_t col = 0; col < area_width; ++col)
+				TFT_ColorBlockSend(region[row_pos + col], 1);
+		}
+	}
+	TFT_FinishDrawArea();
+}
+
+// Scroll the text over the region background
+void TFT_ScrollBitmapOverRegion(uint16_t x, uint16_t y, uint16_t region[], uint16_t rw, uint16_t rh, uint16_t y_offset,
+		const uint8_t *bitmap, uint16_t bm_width, uint16_t bm_height, int16_t offset, uint8_t gap, uint16_t txt_color) {
+
+	uint16_t scr_width	= TFT_Width();
+	uint16_t scr_height	= TFT_Height();
+	if (y > scr_height || y_offset > rh || x > scr_width || rw < 1 || rh < 1 || bm_width < 1 || !bitmap) return;
+	if (y + rh  > scr_height)					// Clip region height
+		rh = scr_height - y;
+
+	uint16_t area_width = rw;
+	if (x + area_width > scr_width)				// Clip region width
+		area_width = scr_width - x;
+
+	while (offset >= bm_width) offset -= bm_width + gap;
+    uint16_t bytes_per_row = (bm_width + 7) >> 3;
+
+	// Set TFT address window to clipped image bounds
+	TFT_StartDrawArea(x, y, area_width, rh);
+
+	// Write color data row by row
+    for (uint16_t row = 0; row < rh; ++row) {
+    	uint16_t out_bit = 0;					// Number of bits were pushed out
+    	uint32_t r_pos = row * rw;				// Row start position in the region
+
+    	if (row < y_offset) {					// The bitmap shifted down, draw pure region data
+    		for (uint16_t i = 0; i < area_width; ++i) {
+    			uint16_t color = region[r_pos + i];
+    			TFT_ColorBlockSend(color, 1);
+    		}
+    		continue;							// Next row
+    	}
+    	if (offset < 0) {						// Negative offset means bitmap should be shifted right
+    		// Fill-up left side with background color
+    		out_bit = abs(offset);
+    		if (out_bit > area_width) out_bit = area_width;
+			for (uint16_t i = 0; i < out_bit; ++i) { // For each pixel...
+				uint16_t color = region[r_pos + i];
+				TFT_ColorBlockSend(color, 1);
+			}
+    	}
+    	int16_t bitmap_offset = offset;				// The bitmap offset is actual on the first while() loop only
+    	while (out_bit < area_width) {				// The bitmap can fit the region several times
+			for (uint16_t bit = (bitmap_offset > 0)?bitmap_offset:0; bit < bm_width; ++bit) {
+				if (out_bit >= area_width)			// row is over
+					break;
+				uint16_t in_byte = (row - y_offset) * bytes_per_row + (bit >> 3);
+				uint8_t  in_mask = 0x80 >> (bit & 0x7);
+				bool use_bitmap_color = (row - y_offset < bm_height) && (in_mask & bitmap[in_byte]);
+				uint16_t color 	 = (use_bitmap_color)?txt_color:region[r_pos + out_bit];
+				TFT_ColorBlockSend(color, 1);
+				++out_bit;
+			}
+			bitmap_offset = 0;						// The bitmap offset is actual on the first while() loop only
+			if (gap == 0) {							// Not looped bitmap. Fill-up rest area with background image
+				if (area_width > out_bit) {
+					for (uint16_t i = out_bit; i < area_width; ++i) { // For each pixel...
+						uint16_t color = region[r_pos + i];
+						TFT_ColorBlockSend(color, 1);
+					}
+				}
+				break;								// row is over
+			} else {								// Looped bitmap
+				uint8_t bg_bits = gap;				// Draw the gap between looped bitmap images
+				if (area_width > out_bit) {			// There is a place to draw
+					if (bg_bits > (area_width - out_bit))
+						bg_bits = area_width - out_bit;
+					for (uint16_t i = 0; i < bg_bits; ++i) {
+						uint16_t color = region[r_pos + out_bit];
+						TFT_ColorBlockSend(color, 1);
+						++out_bit;
+					}
+				}
+			}
+    	}
+    }
+    // Send rest data from the buffer
+    TFT_FinishDrawArea();							// Flush color block buffer
+}
 
 static uint16_t read16(uint8_t *ptr) {
 	return ptr[0] | (ptr[1] << 8);
@@ -533,7 +692,7 @@ static uint32_t read32(uint8_t *ptr) {
 }
 
 static uint16_t readPixel(uint8_t *ptr, uint8_t bpp) {
-	if (bpp == 3) {								// 24-bit color
+	if (bpp == 3) {									// 24-bit color
 		return ((ptr[2] & 0xF8) << 8) | ((ptr[1] & 0xFC) << 3) | (ptr[0] >> 3);
 	}
 	// 16-bit color R5-G6-B5

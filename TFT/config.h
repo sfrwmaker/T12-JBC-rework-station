@@ -6,7 +6,7 @@
  */
 
 #ifndef _TFT_CONFIG_H_
-#define _TFT__CONFIG_H_
+#define _TFT_CONFIG_H_
 
 #include "main.h"
 
@@ -24,11 +24,16 @@ extern SPI_HandleTypeDef 	TFT_SPI_PORT;
 
 /*
 // ========================FSMC Interface definitions===================
+//#define FSMC_8_BITS		(1)
+#define FSMC_16_BITS_NMIPI	(1)
 #define FSMC_LCD_CMD   	0x60000000
 // LCD DATA Bit Mask, FSMC_A16 = 1 0000 0000 0000 0000
-#define FSMC_LCD_DATA 	0x60010000
+#define FSMC_DATA_MASK	0x10000
 // ========================End of FSMC Interface definitions============
 */
+// To enable gamma color correction profile, Un-comment the next line
+// Works with NT35510 and SSD1963 displays
+#define APPLY_GAMMA_PROFILE	(1)
 
 #define		TFT_Delay(a)	HAL_Delay(a);
 

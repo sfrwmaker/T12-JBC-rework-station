@@ -1,5 +1,5 @@
 /*
- * bitmap.h
+ * pixmap.h
  *
  *  Created on: Sep 09 2021
  *      Author: Alex
@@ -14,7 +14,7 @@
 /*
  * Pixmap is a multi-color icon with predefined palette of colors.
  * Supported depth: 1-8, number of colors 2, 4, 8, 16, ... 256
- * Each pixel coded by several bit in the pixmap-array. 
+ * Each pixel coded by several bits in the pixmap-array.
  * Pixmap data structure is allocated in memory by malloc() call.
  * The space to store pixmap, pallete, width and height is allocated together
  * with the space for pixmap itself
@@ -22,8 +22,8 @@
  * All other copies are just "links" to the main instance
  */
 struct p_data {
-	uint16_t	w;												// Bitmap width
-	uint16_t	h;												// Bitmap height
+	uint16_t	w;												// Pixmap width
+	uint16_t	h;												// Pixmap height
 	uint8_t		links;											// Number of the links to allocated area
 	uint8_t		depth;											// The number of bits per pixel. Colors supported by pixmap is 2^depth
 	uint8_t		colors;											// The number of colors actually allocated in the palette
@@ -53,6 +53,8 @@ class PIXMAP {
 		void		drawHLine(uint16_t x, uint16_t y, uint16_t length, uint16_t color);
 		void		drawVLineCode(uint16_t x, uint16_t y, uint16_t length, uint8_t color_code);
 		void		drawVLine(uint16_t x, uint16_t y, uint16_t length, uint16_t color);
+		void		draw(uint16_t x, uint16_t y, uint16_t area_width, uint16_t area_height);
+		void		draw(uint16_t x, uint16_t y);
 	private:
 		struct p_data	*ds	= 0;
 };

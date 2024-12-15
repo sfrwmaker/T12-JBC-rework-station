@@ -3,9 +3,11 @@
  *
  *  Created on: Nov 4, 2022
  *      Author: Alex
+ *
+ *  Modified May 22, 2024
  */
 
-#include <ll_spi.h>
+#include "ll_spi.h"
 #include <stdlib.h>
 #include "common.h"
 
@@ -449,6 +451,120 @@ void TFT_DrawArea(uint16_t x0, uint16_t y0, uint16_t area_width, uint16_t area_h
     TFT_FinishDrawArea();						// Flush color block buffer
 }
 
+// BITMAP functions
+// Clear bitmap content
+void TFT_BM_Clear(uint8_t *bitmap, uint32_t size) {
+	for (uint32_t i = 0; i < size; ++i)
+		bitmap[i] = 0;
+}
+
+// Set dot inside bitmap
+void TFT_BM_DrawPixel(uint8_t *bitmap, uint16_t bm_width, uint16_t bm_height, uint16_t x, uint16_t y) {
+	if (x >= bm_width || y >= bm_height) return;
+	uint8_t  bytes_per_row = (bm_width + 7) >> 3;
+	uint16_t in_byte = y * bytes_per_row + (x >> 3);
+	uint8_t  in_mask = 0x80 >> (x & 0x7);
+	bitmap[in_byte] |= in_mask;
+}
+
+// Read dot from bitmap; Returns 0 if no dot set
+uint8_t	TFT_BM_Pixel(const uint8_t *bitmap, uint16_t bm_width, uint16_t bm_height, uint16_t x, uint16_t y) {
+	if (x >= bm_width || y >= bm_height) return 0;
+	uint8_t  bytes_per_row = (bm_width + 7) >> 3;
+	uint16_t in_byte = y * bytes_per_row + (x >> 3);
+	uint8_t  in_mask = 0x80 >> (x & 0x7);
+	return (bitmap[in_byte] & in_mask);
+}
+
+// Draw horizontal line inside bitmap
+void TFT_BM_DrawHLine(uint8_t *bitmap, uint16_t bm_width, uint16_t bm_height, uint16_t x, uint16_t y, uint16_t length) {
+	if (length == 0 || x >= bm_width || y >= bm_height) return;
+	if (x + length >= bm_width) length = bm_width - x;
+	uint16_t bytes_per_row	= (bm_width+7) >> 3;
+	uint32_t byte_index		= y * bytes_per_row + (x >> 3);
+	uint16_t start_bit		= x & 7;
+	while (length > 0) {
+		uint8_t mask = (0x100 >> start_bit) - 1; 			// several '1'staring from start_bit to end of byte
+		uint16_t end_bit = start_bit + length;
+		if (end_bit < 8) {									// Line terminates in the current byte
+			uint8_t clear_mask = (0x100 >> end_bit) - 1;
+			mask &= ~clear_mask;							// clear tail of the byte
+			length = 0;										// Last pixel
+		} else {
+			length -= 8 - start_bit;
+		}
+		bitmap[byte_index++] |= mask;
+		start_bit = 0;										// Fill up the next byte
+	}
+}
+
+// Draw vertical line inside bitmap
+void TFT_BM_DrawVLine(uint8_t *bitmap, uint16_t bm_width, uint16_t bm_height, uint16_t x, uint16_t y, uint16_t length) {
+	if (length == 0 || x >= bm_width || y >= bm_height) return;
+	if (y+length >= bm_height) length = bm_height - y;
+	uint16_t bytes_per_row	= (bm_width+7) >> 3;
+	uint32_t byte_index		= y * bytes_per_row + (x >> 3);
+	uint16_t bit			= x & 7;
+	uint8_t  mask = (0x80 >> bit);
+	for (uint16_t i = 0; i < length; ++i) {
+		bitmap[byte_index] |= mask;
+		byte_index += bytes_per_row;
+	}
+}
+
+// Join bitmaps. Draw icon (another bitmap) inside current bitmap.
+void TFT_BM_JoinIcon(uint8_t *bitmap, uint16_t bm_width, uint16_t bm_height, uint16_t x, uint16_t y, const uint8_t *icon, uint16_t ic_width, uint16_t ic_height) {
+	if (x >= bm_width || y >= bm_height) return;
+	uint16_t bm_bytes_per_row = (bm_width + 7) >> 3;
+	uint16_t ic_bytes_per_row = (ic_width + 7) >> 3;
+	uint8_t  first_bit 	= x & 7;							// The first bit in the bitmap byte
+	uint16_t first_byte	= x >> 3;							// First byte of bitmap to start drawing the icon
+	for (uint16_t row = 0; row < ic_height; ++ row) {
+		if (row + y >= bm_height)							// Out of the bitmap border
+			break;
+		uint8_t lb = icon[row * ic_bytes_per_row];			// Left icon byte in the row
+		lb >>= first_bit;
+		uint16_t bm_byte = (row + y) * bm_bytes_per_row + first_byte; // Left bitmap byte in the row
+		bitmap[bm_byte++] |= lb;							// Draw left byte in the row
+		for (uint16_t ic_byte = 0; ic_byte < ic_bytes_per_row; ++ic_byte) {
+			if (ic_byte + first_byte >= bm_bytes_per_row-1)	// Out of the bitmap border
+				break;
+			uint16_t icon_pos = ic_bytes_per_row * row + ic_byte;
+			uint16_t mask = icon[icon_pos] << 8;
+			if (ic_byte < ic_bytes_per_row - 1)				// If first_bit > 0, the icon can be shifted right some pixels!
+				mask |= icon[icon_pos+1];
+			mask >>= first_bit;
+			mask &= 0xff;
+			bitmap[bm_byte++] = mask;
+		}
+	}
+}
+
+// Draw coordinate Axis
+void TFT_BM_DrawVGauge(uint8_t *bitmap, uint16_t bm_width, uint16_t bm_height, uint16_t gauge, uint8_t edged) {
+	if (gauge > bm_height) gauge = bm_height;
+	uint16_t top_line = bm_height - gauge;
+	uint8_t  bytes_per_row = (bm_width + 7) >> 3;
+	uint32_t size = bytes_per_row * bm_height;
+	TFT_BM_Clear(bitmap, size);
+
+	uint16_t x_offset		= 0;
+	uint16_t half_height	= bm_height >> 1;
+	if (edged) {
+		TFT_BM_DrawHLine(bitmap, bm_width, bm_height, 0, 0, bm_width); // Horizontal top line
+		for (uint16_t i = 1; i < top_line; ++i) {			// draw edged part of the triangle
+			uint16_t next_offset = (bm_width * i + half_height) / bm_height;
+			TFT_BM_DrawHLine(bitmap, bm_width, bm_height, x_offset, i, next_offset - x_offset+1); // draw left line of the triangle
+			x_offset = next_offset;
+		}
+		TFT_BM_DrawVLine(bitmap, bm_width, bm_height, bm_width-1, 0, top_line);
+	}
+	for (uint16_t i = top_line; i < bm_height; ++i) {
+		x_offset = (bm_width * i + half_height) / bm_height;
+		TFT_BM_DrawHLine(bitmap, bm_width, bm_height, x_offset, i, bm_width - x_offset); // fill-up the triangle
+	}
+}
+
 // Draw bitmap
 void TFT_DrawBitmap(uint16_t x0, uint16_t y0, uint16_t area_width, uint16_t area_height,
 		const uint8_t *bitmap, uint16_t bm_width, uint16_t bg_color, uint16_t fg_color) {
@@ -502,37 +618,30 @@ void TFT_DrawScrolledBitmap(uint16_t x0, uint16_t y0, uint16_t area_width, uint1
     		if (out_bit > area_width) out_bit = area_width;
     		TFT_ColorBlockSend(bg_color, out_bit);
     	}
-    	// Send bitmap row
-    	for (uint16_t bit = (offset > 0)?offset:0; bit < bm_width; ++bit) {
-    		if (out_bit >= area_width)			// row is over
-    			break;
-    		uint16_t in_byte = row * bytes_per_row + (bit >> 3);
-    		uint8_t  in_mask = 0x80 >> (bit & 0x7);
-    		uint16_t color 	 = (in_mask & bitmap[in_byte])?fg_color:bg_color;
-    		TFT_ColorBlockSend(color, 1);
-    		++out_bit;
-    	}
-    	if (gap == 0) {							// Not looped bitmap. Fill-up rest area with background color
-    		if (area_width > out_bit)
-    			TFT_ColorBlockSend(bg_color, area_width - out_bit);
-    	} else {								// Looped bitmap
-    		uint8_t bg_bits = gap;				// Draw the gap between looped bitmap images
-    		if (area_width > out_bit) {			// There is a place to draw
-    		    if (bg_bits > (area_width - out_bit))
-    		    	bg_bits = area_width - out_bit;
-    		    TFT_ColorBlockSend(bg_color, bg_bits);
-    		    out_bit += bg_bits;
-    		}
-    		// Start over the bitmap
-    		for (uint16_t bit = 0; bit < bm_width; ++bit) {
-    			if (out_bit >= area_width)		// row is over
-    				break;
-    			uint16_t in_byte = row * bytes_per_row + (bit >> 3);
-    			uint8_t  in_mask = 0x80 >> (bit & 0x7);
-    			uint16_t color = (in_mask & bitmap[in_byte])?fg_color:bg_color;
-    			TFT_ColorBlockSend(color, 1);
-    			++out_bit;
-    		}
+    	int16_t bitmap_offset = offset;				// The bitmap offset is actual on the first while() loop only
+    	while (out_bit < area_width) {				// The bitmap can fit the region several times
+			for (uint16_t bit = (bitmap_offset > 0)?bitmap_offset:0; bit < bm_width; ++bit) {
+				if (out_bit >= area_width)			// row is over
+					break;
+				uint16_t in_byte = row * bytes_per_row + (bit >> 3);
+				uint8_t  in_mask = 0x80 >> (bit & 0x7);
+				uint16_t color 	 = (in_mask & bitmap[in_byte])?fg_color:bg_color;
+				TFT_ColorBlockSend(color, 1);
+				++out_bit;
+			}
+			bitmap_offset = 0;						// The bitmap offset is actual on the first while() loop only
+			if (gap == 0) {							// Not looped bitmap. Fill-up rest area with background color
+				if (area_width > out_bit)
+					TFT_ColorBlockSend(bg_color, area_width - out_bit);
+			} else {								// Looped bitmap
+				uint8_t bg_bits = gap;				// Draw the gap between looped bitmap images
+				if (area_width > out_bit) {			// There is a place to draw
+					if (bg_bits > (area_width - out_bit))
+						bg_bits = area_width - out_bit;
+					TFT_ColorBlockSend(bg_color, bg_bits);
+					out_bit += bg_bits;
+				}
+			}
     	}
     }
     // Send rest data from the buffer
@@ -581,6 +690,36 @@ void TFT_DrawPixmap(uint16_t x0, uint16_t y0, uint16_t area_width, uint16_t area
     }
     // Send rest data from the buffer
     TFT_FinishDrawArea();									// Flush color block buffer
+}
+
+void TFT_Touch_Adjust_Rotation_XY(uint16_t *x, uint16_t *y) {
+	int16_t X = *x;
+	int16_t Y = *y;
+	switch(angle) {
+		case TFT_ROTATION_90:
+			X = *y;
+			Y = TFT_WIDTH_0 - *x;
+			break;
+		case TFT_ROTATION_180:
+			X = TFT_WIDTH_0 - *x;
+			Y = TFT_HEIGHT_0 - *y;
+			break;
+		case TFT_ROTATION_270:
+			X = TFT_HEIGHT_0 - *y;
+			Y = *x;
+			break;
+		default:
+			break;
+	}
+	if (X < 0)
+		X = 0;
+	else if (X >= TFT_WIDTH)
+		X = TFT_WIDTH - 1;
+	if (Y < 0)
+		Y = 0;
+	else if (Y >= TFT_HEIGHT)
+		Y = TFT_HEIGHT - 1;
+	*x = X; *y = Y;
 }
 
 // ======================================================================

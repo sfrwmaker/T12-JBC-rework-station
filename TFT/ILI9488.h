@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 void		ILI9488_Init(void);
+void		ILI9488_IPS_Init(void);
 
 #ifdef __cplusplus
 }

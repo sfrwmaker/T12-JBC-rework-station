@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "pixmap.h"
+#include "common.h"
 
 PIXMAP::PIXMAP(uint16_t width, uint16_t height, uint8_t depth) {
 	ds = 0;
@@ -187,4 +188,13 @@ void PIXMAP::drawVLine(uint16_t x, uint16_t y, uint16_t length, uint16_t color) 
 		uint8_t color_code = colorCode(color);
 		drawVLineCode(x, y+1, length -1, color_code);
 	}
+}
+
+void PIXMAP::draw(uint16_t x, uint16_t y, uint16_t area_width, uint16_t area_height) {
+	if (ds == 0) return;
+	TFT_DrawPixmap(x, y, area_width, area_height, ds->data, ds->w, ds->depth, palette());
+}
+
+void PIXMAP::draw(uint16_t x, uint16_t y) {
+	TFT_DrawPixmap(x, y, ds->w, ds->h, ds->data, ds->w, ds->depth, palette());
 }

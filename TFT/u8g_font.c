@@ -101,10 +101,10 @@ void u8g2_u8gFont(u8g2_t *u8g2) {
 void u8g2_SetFont(u8g2_t *u8g2, const uint8_t  *font) {
 	if (u8g2->font != font ) {
 		u8g2->font	= font;
-		u8g2->scale	= 1;
 		u8g2_read_font_info(&(u8g2->font_info), font);
 		u8g2_UpdateRefHeight(u8g2);
 	}
+	u8g2->scale	= 1;
 }
 
 void u8g2_SetFontMode(u8g2_t *u8g2, uint8_t is_transparent, uint16_t bg_color) {

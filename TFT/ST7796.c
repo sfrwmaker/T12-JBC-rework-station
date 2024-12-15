@@ -87,7 +87,7 @@ typedef enum {
 // Initialize the Display
 void ST7796_Init(void) {
 	// Initialize display interface. By default the library guess the display interface
-		TFT_InterfaceSetup(TFT_16bits, 0);
+	TFT_InterfaceSetup(TFT_16bits, 0);
 	// Reset display hardware
 	TFT_DEF_Reset();
 	// SOFTWARE RESET

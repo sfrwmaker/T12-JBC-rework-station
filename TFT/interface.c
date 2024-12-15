@@ -20,9 +20,9 @@ static t_TFT_Color_Block_Send	pColorBlockSend		= TFT_SPI_ColorBlockSend_16bits;
 static t_TFT_Color_Block_Flush	pColorBlockFlush	= TFT_SPI_ColorBlockFlush;
 static t_TFT_Draw_Pixel			pDrawPixel			= TFT_DrawPixel_16bits;
 
+// SPI Interface
 void TFT_InterfaceSetup(tTFT_PIXEL_BITS data_size, tTFT_INT_FUNC *pINT) {
 	if (pINT) {
-		// SPI Interface
 		pReset				= (pINT->pReset)?pINT->pReset:TFT_SPI_Reset;
 		pCommand			= (pINT->pCommand)?pINT->pCommand:TFT_SPI_Command;
 		pDataMode			= (pINT->pDataMode)?pINT->pDataMode:TFT_SPI_DATA_MODE;
@@ -53,9 +53,9 @@ static t_TFT_Color_Block_Send	pColorBlockSend		= TFT_FSMC_ColorBlockSend_16bits;
 static t_TFT_Color_Block_Flush	pColorBlockFlush	= TFT_FSMC_ColorBlockFlush;
 static t_TFT_Draw_Pixel			pDrawPixel			= TFT_DrawPixel_16bits;
 
+// FSMC Interface
 void TFT_InterfaceSetup(tTFT_PIXEL_BITS data_size, tTFT_INT_FUNC *pINT) {
 	if (pINT) {
-		// SPI Interface
 		pReset				= (pINT->pReset)?pINT->pReset:TFT_FSMC_Reset;
 		pCommand			= (pINT->pCommand)?pINT->pCommand:TFT_FSMC_Command;
 		pDataMode			= (pINT->pDataMode)?pINT->pDataMode:TFT_FSMC_DATA_MODE;
@@ -64,14 +64,14 @@ void TFT_InterfaceSetup(tTFT_PIXEL_BITS data_size, tTFT_INT_FUNC *pINT) {
 		pColorBlockFlush	= (pINT->pColorBlockFlush)?pINT->pColorBlockFlush:TFT_FSMC_ColorBlockFlush;
 		if (data_size == TFT_16bits) {
 			pColorBlockSend	= (pINT->pColorBlockSend)?pINT->pColorBlockSend:TFT_FSMC_ColorBlockSend_16bits;
-			pDrawPixel		= (pINT->pDrawPixel)?pINT->pDrawPixel:TFT_DrawPixel_16bits;
+			pDrawPixel		= (pINT->pDrawPixel)?pINT->pDrawPixel:TFT_FSMC_DrawPixel_16bits;
 		} else {
 			pColorBlockSend	= (pINT->pColorBlockSend)?pINT->pColorBlockSend:TFT_FSMC_ColorBlockSend_18bits;
-			pDrawPixel		= (pINT->pDrawPixel)?pINT->pDrawPixel:TFT_DrawPixel_18bits;
+			pDrawPixel		= (pINT->pDrawPixel)?pINT->pDrawPixel:TFT_FSMC_DrawPixel_18bits;
 		}
 	} else {
 		pColorBlockSend		=	(data_size == TFT_16bits)?TFT_FSMC_ColorBlockSend_16bits:TFT_FSMC_ColorBlockSend_18bits;
-		pDrawPixel			=	(data_size == TFT_16bits)?TFT_DrawPixel_16bits:TFT_DrawPixel_18bits;
+		pDrawPixel			=	(data_size == TFT_16bits)?TFT_FSMC_DrawPixel_16bits:TFT_FSMC_DrawPixel_18bits;
 	}
 }
 #endif
