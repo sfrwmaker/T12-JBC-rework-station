@@ -4,6 +4,8 @@
  *
  * 2023 MAR 01, v.1.01
  *  Removed showOffTimeout()
+ * 2024 OCT 14, v.1.07
+ * 		Added DASH::gunStandby()
  */
 
 #ifndef _DASH_H_
@@ -34,6 +36,7 @@ class DASH : public MODE {
 		void			ironPhase(tDevice dev, tIronPhase phase);
 		void			presetTemp(tDevice dev, uint16_t temp);
 		void			fanSpeed(bool modify);
+		void			gunStandby(void);
 	protected:
 		void 			initEncoders(tDevice u_dev, tDevice l_dev, int16_t u_value, uint16_t l_value);
 		void 			changeIronShort(void);

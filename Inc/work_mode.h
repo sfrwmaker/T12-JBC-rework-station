@@ -39,6 +39,7 @@ class MWORK : public DASH {
 		EMP_AVERAGE  	idle_pwr;							// Exponential average value for idle power
 		uint32_t		t12_phase_end	= 0;				// Time when to change phase of T12 IRON (ms)
 		uint32_t		jbc_phase_end	= 0;				// Time when to change phase of JBC IRON (ms)
+		uint32_t		gun_switch_off	= 0;				// Time when to switch-off the Hot Air Gun (ms)
 		uint32_t		lowpower_time	= 0;				// Time when switch the T12 IRON to standby power mode
 		uint32_t		swoff_time		= 0;				// Time when to switch the IRON off by sotfware method (see swTimeout())
 		uint32_t		tilt_time		= 0;				// Time when to change tilt status (ms)s

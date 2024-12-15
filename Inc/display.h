@@ -2,14 +2,20 @@
  * display.h
  *
  * 2023 JAN 04, v.1.01
- *  Added new parameter, item status, to the DSPL::directoryShow() to show size of the current file
+ * 		Added new parameter, item status, to the DSPL::directoryShow() to show size of the current file
  * 2023 MAR 01, v.1.01
- *  Added 'pos' parameter to the timeToOff()
- *  Changed dp_color to light blue
+ *  	Added 'pos' parameter to the timeToOff()
+ *  	Changed dp_color to light blue
  * 2024 SEP 07
- *  Modified DSPL::drawHGauge() method
- *  Modified DSPL::calibShow() method
- *  Added DSPL::pr_color constant
+ *  	Modified DSPL::drawHGauge() method
+ *  	Modified DSPL::calibShow() method
+ *  	Added DSPL::pr_color constant
+ *  2024 OCT 12, v.1.07
+ *  	Added parameter into DSPL.init() allowing to use IPS display
+ *  2024 OCT 14
+ *  	Added DSPL::drawGunStandby()
+ *  2024 NOV 05, v.1.08
+ *  	Implemented the pre-heat phase in calibration modes: modified the DSPL::calibShow() and DSPL::calibManualShow()
  */
 
 #ifndef DISPLAY_H_
@@ -49,7 +55,7 @@ class DSPL : public tft_ILI9341, public BRGT, public GRAPH, public NLS_MSG {
 	public:
 					DSPL(void) : tft_ILI9341()				{ }
 		virtual		~DSPL()									{ }
-		void		init();
+		void		init(bool ips = false);
 		void		rotate(tRotation rotation);
 		void		setLetterFont(uint8_t *font);
 		void		clear(void);
@@ -61,6 +67,7 @@ class DSPL : public tft_ILI9341, public BRGT, public GRAPH, public NLS_MSG {
 		void		drawFanPcnt(uint8_t p, bool modify = false);
 		void		drawAmbient(int16_t t, bool celsius);
 		void		drawAlternate(uint16_t t, bool active, tDevice dev_type); // Alternative unit temperature (JBC or T12)
+		void		drawGunStandby(void);
 		void		drawPower(uint8_t p, tUnitPos pos);
 		void		animateFan(int16_t t);
 		void		stopFan(void);
@@ -82,8 +89,8 @@ class DSPL : public tft_ILI9341, public BRGT, public GRAPH, public NLS_MSG {
 		void		drawTipList(TIP_ITEM list[], uint8_t list_len, uint8_t index, bool name_only);
 		void		menuShow(t_msg_id menu_id, uint8_t item, const char* value, bool modify);
 		void		directoryShow(const std::vector<std::string> &dir_list, uint16_t item, std::string status);
-		void 		calibShow(uint8_t ref_point, uint16_t current_temp, uint16_t real_temp, bool celsius, uint8_t power, bool on, uint8_t ready_pcnt, uint8_t int_temp_pcnt);
-		void		calibManualShow(uint16_t ref_temp, uint16_t current_temp, uint16_t setup_temp, bool celsius, uint8_t power, bool on, bool ready, bool calibrated);
+		void 		calibShow(uint8_t ref_point, uint16_t current_temp, uint16_t real_temp, bool celsius, uint8_t power, bool on, uint8_t ready_pcnt, uint8_t int_temp_pcnt, uint16_t manual_power);
+		void		calibManualShow(uint16_t ref_temp, uint16_t current_temp, uint16_t setup_temp, bool celsius, uint8_t power, bool on, bool ready, bool calibrated, uint16_t manual_power);
 		void		endCalibration(void);
 		bool		pidStart(void);
 		void		pidAxis(const char *title, const char *temp, const char *disp);

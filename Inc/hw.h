@@ -5,7 +5,11 @@
  *      Author: Alex
  *
  *  2022 DEC 23
- *      added temperature parameters to the HW::init() allowing to initialize the hardware at the startup
+ *  	added temperature parameters to the HW::init() allowing to initialize the hardware at the startup
+ *  2024 NOV 10, v.1.08
+ *  	Added HW::t_stm32 and HW:vrefint variables to read the MCU temperature
+ *  	Added HW::updateIntTemp()
+ *  	Added new arguments to HW::init()
  */
 
 #ifndef HW_H_
@@ -32,11 +36,13 @@ class HW {
 		HW(void) : cfg(),
 			u_enc(&htim3),
 			l_enc(&htim4)									{ }
-		uint16_t			ambientInternal(void)			{ return t_amb.read();							}
+		uint16_t			ambientRaw(void)				{ return t_amb.read();							}
 		bool				noAmbientSensor(void)			{ return t_amb.read() >= max_ambient_value;		}
 		void				updateAmbient(uint16_t value)	{ t_amb.update(value);							}
+		void				updateIntTemp(uint16_t vref, uint16_t t_mcu)
+															{ vrefint.update(vref), t_stm32.update(t_mcu);	}
 		void				initAmbient(uint16_t value)		{ t_amb.reset(value);							}
-		CFG_STATUS			init(uint16_t t12_temp, uint16_t jbc_temp, uint16_t gun_temp, uint16_t ambient);
+		CFG_STATUS			init(uint16_t t12_temp, uint16_t jbc_temp, uint16_t gun_temp, uint16_t ambient, uint16_t vref, uint32_t t_mcu);
 		int32_t				ambientTemp(void);				// T12 IRON ambient temperature
 		CFG			cfg;
 		NLS			nls;
@@ -47,6 +53,8 @@ class HW {
 		BUZZER		buzz;
 	private:
 		EMP_AVERAGE 	t_amb;								// Exponential average of the ambient temperature
+		EMP_AVERAGE		t_stm32;							// Exponential average of the internal stm32 MCU temperature
+		EMP_AVERAGE		vrefint;							// Exponential average of the VREF value
 		const uint8_t	ambient_emp_coeff	= 30;			// Exponential average coefficient for ambient temperature
 		const uint16_t	max_ambient_value	= 3900;			// About -30 degrees. If the soldering IRON disconnected completely, "ambient" value is greater than this
 };

@@ -1,18 +1,26 @@
 /*
  * mode.h
  *
- * Dec 08 2022
- *    Added clean() method to the MODE class
- * Dec 20 2022
- *    Added restore_power_ms to the MCALIB_MANUAL class to stop powering the iron when you try to decrease the preset temperature
- * Sep 03 2023
- * 	  Modified the FDEBUG class
- * 	  Move load language data procedure to the menu.h
- * Sep 10 2023, v 1.03
- * 	  Added new variables to the MAUTOPID to monitor the current through the UNIT after powering up:start_c_check and c_check_to
- * 	  Added new flag variable keep_graph to prevent free memory when proceed with manual pid procedure
- * Mar 30 2024 v 1.04
+ * 2022 DEC 08
+ * 		Added clean() method to the MODE class
+ * 2022 DEC 20
+ * 		Added restore_power_ms to the MCALIB_MANUAL class to stop powering the iron when you try to decrease the preset temperature
+ * 2023 SEP 03
+ * 		Modified the FDEBUG class
+ * 	 	Move load language data procedure to the menu.h
+ * 2023 SEP 10, v.1.03
+ * 	  	Added new variables to the MAUTOPID to monitor the current through the UNIT after powering up:start_c_check and c_check_to
+ * 	  	Added new flag variable keep_graph to prevent free memory when proceed with manual pid procedure
+ * 2024 MAR 30, v.1.04
  *     changed class MTACT to include pointer to the FAIL mode
+ * 2024 OCT 6, v.1.07
+ * 		Added check_fan variable into MTPID class. This is a time when to check the Hot Gun connectivity
+ * 2024 NOV 09, v.1.08
+ * 		Implemented pre-heat phase in the calibration mode:
+ * 			Added MCALIB::manual_power parameter and MCALIB::max_manual_power constant
+ *			Added MCALIB_MANUAL::manual_power parameter and MCALIB_MANUAL::max_manual_power constant
+ * 2024 NOV 28
+ * 		Removed unused parameter (ambient) from MCALIB_MANUAL::buildCalibration()
  *
  */
 
@@ -82,11 +90,13 @@ class MCALIB : public MODE {
 		uint32_t	ready_to		= 0;					// The time when the Iron should be ready to enter real temperature (ms)
 		uint32_t	phase_change	= 0;					// The heating phase change time (ms)
 		uint32_t	check_device_tm	= 0;					// Time in ms when to check the device connectivity
+		uint16_t	manual_power	= 0;					// The power supplying to the iron. Used to apply the solder drop to the tip
 		enum {MC_OFF = 0, MC_GET_READY, MC_HEATING, MC_COOLING, MC_HEATING_AGAIN, MC_READY}
 					phase = MC_OFF;							// The Iron getting the Reference temperature phase
 		const uint16_t start_int_temp 	 = 600;				// Minimal temperature in internal units, about 100 degrees Celsius
 		const uint32_t phase_change_time = 3000;
 		const uint32_t check_device_to	 = 5000;
+		const uint16_t max_manual_power  = 600;				// The maximal power could be applied to the iron in preparation phase
 };
 
 //---------------------- The calibrate tip mode: manual calibration --------------
@@ -96,7 +106,7 @@ class MCALIB_MANUAL : public MODE {
 		virtual void	init(void);
 		virtual MODE*	loop(void);
 	private:
-		void 		buildCalibration(int8_t ambient, uint16_t tip[], uint8_t ref_point);
+		void 		buildCalibration(uint16_t tip[], uint8_t ref_point);
 		void		restorePIDconfig(CFG *pCFG, UNIT* pUnit);
 		uint8_t		ref_temp_index	= 1;					// Which temperature reference to change: [0-3]
 		uint16_t	calib_temp[4];							// The calibration temp. in internal units in reference points
@@ -106,6 +116,8 @@ class MCALIB_MANUAL : public MODE {
 		uint32_t	temp_setready_ms= 0;					// The time in ms when we should check the temperature is ready
 		uint32_t	restore_power_ms= 0;
 		uint16_t	fan_speed		= 1500;					// The Hot Air Gun fan speed during calibration
+		uint16_t	manual_power	= 0;					// The power supplying to the iron. Used to apply the solder drop to the tip
+		const uint16_t  max_manual_power	 = 600;			// The maximal power could be applied to the iron in preparation phase
 };
 
 //---------------------- The PID coefficients tune mode --------------------------
@@ -118,6 +130,7 @@ class MTPID : public MODE {
 	private:
 		bool		confirm(void);							// Confirmation dialog
 		uint32_t	data_update	= 0;						// When read the data from the sensors (ms)
+		uint32_t	check_fan	= 0;						// When not 0, time in ms when to check Hot Gun connectivity
 		uint8_t		data_index	= 0;						// Active coefficient
 		bool        modify		= 0;						// Whether is modifying value of coefficient
 		bool		on			= 0;						// Whether the IRON or Hot Air Gun is turned on

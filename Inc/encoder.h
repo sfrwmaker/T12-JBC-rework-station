@@ -5,10 +5,11 @@
  *      Author: Alex
  *
  * 2023 FEB 20 v.1.01
- *  Introduced the minimum timeout before next call the read() method to ensure correct readings from the encoder
- *  Added read_ms variable that keeps the time when the read() was called last time
- *  and 'to' constant - minimum timeout before next encoder reading
- *
+ * 		Introduced the minimum timeout before next call the read() method to ensure correct readings from the encoder
+ * 		Added read_ms variable that keeps the time when the read() was called last time
+ *  	and 'to' constant - minimum timeout before next encoder reading
+ * 2024 OCT 11 v.1.07
+ * 		Added RENC::buttonPressed() to check the current button status
  */
  
 #ifndef ENCODER_H_
@@ -19,18 +20,19 @@
 class RENC {
 	public:
 		RENC(TIM_HandleTypeDef *htim);
-		void		start(void)								{ HAL_TIM_Encoder_Start(htim, TIM_CHANNEL_ALL); }
-		void		stop(void)								{ HAL_TIM_Encoder_Stop(htim, TIM_CHANNEL_ALL);	}
+		void		start(void)								{ HAL_TIM_Encoder_Start(htim, TIM_CHANNEL_ALL); 				}
+		void		stop(void)								{ HAL_TIM_Encoder_Stop(htim, TIM_CHANNEL_ALL);					}
 		void 		addButton(GPIO_TypeDef* ButtonPORT, uint16_t ButtonPIN);
 		int16_t 	read(void);
 		int16_t		changed(void);
 		uint8_t		buttonStatus(void);
-		void		setClockWise(bool clockwise)			{ this->clockwise = clockwise;		}
+		void		setClockWise(bool clockwise)			{ this->clockwise = clockwise;									}
 		bool		write(int16_t initPos);
 		void    	reset(int16_t initPos, int16_t low, int16_t upp, uint8_t inc, uint8_t fast_inc, bool looped);
-		void 		setTimeout(uint16_t timeout_ms)			{ over_press = timeout_ms; }
-		void    	setIncrement(uint8_t inc)           	{ increment = fast_increment = inc; }
-		uint8_t		getIncrement(void)                 		{ return increment; }
+		void 		setTimeout(uint16_t timeout_ms)			{ over_press = timeout_ms;										}
+		void    	setIncrement(uint8_t inc)           	{ increment = fast_increment = inc; 							}
+		uint8_t		getIncrement(void)                 		{ return increment; 											}
+		bool 		buttonPressed(void)						{ return (GPIO_PIN_RESET == HAL_GPIO_ReadPin(b_port, b_pin));	}
 	private:
 		EMP_AVERAGE			avg;							// Do average the button readings to maintain the button status
 		int16_t				min_pos	= 0;					// Minimum value of rotary encoder

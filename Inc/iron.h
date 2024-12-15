@@ -9,6 +9,8 @@
  *    added stable constant
  * 2024 JUN 28, v.1.04
  *    Changed the IRON::sw_jbc_len from 10 to 15
+ * 2024 OCT 06, v.1.07
+ *    Changed the IRON::sw_jbc_len from 15 to 13
  *
  */
 
@@ -73,7 +75,7 @@ class IRON : public UNIT {
 		const uint8_t	sw_on_value			= 20;
 		const uint8_t	sw_avg_len			= 5;
 		const uint8_t	sw_tilt_len			= 2;
-		const uint8_t 	sw_jbc_len			= 15;			// JBC IRON switches history length
+		const uint8_t 	sw_jbc_len			= 13;			// JBC IRON switches history length
 		const int32_t	stable				= 20000;	// The power value when the Iron reaches the preset temperature. Used in PID::pidStable()
 };
 

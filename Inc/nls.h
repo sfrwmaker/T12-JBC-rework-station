@@ -1,9 +1,20 @@
 /*
  * nls.h
  *
- * Sep 03 2023
- * 	Added Configuration manage menu
- *
+ * 2023 SEP 03
+ * 	    Added Configuration manage menu
+ * 	2024 OCT 10, v.1.07
+ * 		Added "display type" to the setup menu
+ * 		Added "IPS" and "TFT" messages
+ * 	2024 OCT 13
+ * 		Added Hot Air Gun setup menu, added "Hot Gun setup" menu item to the main menu
+ * 		Moved "calibrate gun" to the Gun menu
+ * 		Added "standby temp. and "standby time" to the Gun menu
+ * 		Added MSG_MENU_GUN to the menu list
+ * 	2024 OCT 14
+ * 		Added "standby" message
+ * 	2024 NOV 05, v.1.08
+ * 		Added "max temperature" preference menu item
  */
 
 #ifndef MSG_NLS_H_
@@ -11,13 +22,14 @@
 
 #include <string>
 
-typedef enum e_msg { MSG_MENU_MAIN, MSG_MENU_SETUP = 10, MSG_MENU_T12 = 10+12, MSG_MENU_JBC = 10+12+11, MSG_MENU_CALIB = 10+12+11+6, MSG_PID_MENU = 10+12+11+6+5, MSG_FLASH_MENU = 10+12+11+6+5+5,
-					MSG_ON = 10+12+11+6+5+5+5, MSG_OFF, MSG_FAN, MSG_PWR,
+typedef enum e_msg { MSG_MENU_MAIN, MSG_MENU_SETUP = 10, MSG_MENU_T12 = 10+14, MSG_MENU_JBC = 10+14+11, MSG_MENU_GUN = 10+14+11+6,
+					 MSG_MENU_CALIB = 10+14+11+6+7, MSG_PID_MENU = 10+14+11+6+7+5, MSG_FLASH_MENU = 10+14+11+6+7+5+5,
+					MSG_ON = 10+14+11+6+7+5+5+5, MSG_OFF, MSG_FAN, MSG_PWR,
 					MSG_REF_POINT, MSG_REED, MSG_TILT, MSG_DEG, MSG_MINUTES, MSG_SECONDS,
 					MSG_CW, MSG_CCW, MSG_SET, MSG_ERROR, MSG_TUNE_PID, MSG_SELECT_TIP,
 					MSG_EEPROM_READ, MSG_EEPROM_WRITE, MSG_EEPROM_DIRECTORY, MSG_FORMAT_EEPROM, MSG_FORMAT_FAILED,
 					MSG_SAVE_ERROR, MSG_HOT_AIR_GUN, MSG_T12_IRON, MSG_JBC_IRON, MSG_SAVE_Q, MSG_YES, MSG_NO, MSG_DELETE_FILE, MSG_FLASH_DEBUG,
-					MSG_SD_MOUNT, MSG_SD_NO_CFG, MSG_SD_NO_LANG, MSG_SD_MEMORY, MSG_SD_INCONSISTENT,
+					MSG_SD_MOUNT, MSG_SD_NO_CFG, MSG_SD_NO_LANG, MSG_SD_MEMORY, MSG_SD_INCONSISTENT, MSG_DSPL_IPS, MSG_DSPL_TFT, MSG_GUN_STBY,
 					MSG_LAST,
 					MSG_ACTIVATE_TIPS 	= MSG_MENU_MAIN + 3,
 					MSG_ABOUT 			= MSG_MENU_MAIN + 8,
@@ -48,7 +60,7 @@ class NLS_MSG {
 				{"activate tips",	std::string()},			// Change MSG_ACTIVATE_TIPS if new item menu inserted
 				{"T12 setup",		std::string()},
 				{"JBC setup",		std::string()},
-				{"calibrate GUN",	std::string()},
+				{"HOT GUN setup",	std::string()},
 				{"reset config",	std::string()},
 				{"about",			std::string()},			// Change MSG_ABOUT if new item menu inserted
 				{"quit",			std::string()},
@@ -62,6 +74,8 @@ class NLS_MSG {
 				{"brightness",		std::string()},			// Change in-place menu item
 				{"rotation",		std::string()},			// Change in-place menu item
 				{"language",		std::string()},			// Change in-place menu item
+				{"display type",	std::string()},
+				{"max temperature",	std::string()},
 				{"tune PID",		std::string()},
 				{"save",			std::string()},
 				{"cancel",			std::string()},
@@ -83,6 +97,14 @@ class NLS_MSG {
 				{"standby temp.",	std::string()},
 				{"save",			std::string()},
 				{"calibrate tip",	std::string()},
+				{"back to menu",	std::string()},
+				// HOT AIR GUN MENU
+				{"HOT GUN setup",	std::string()},			// Title
+				{"fast chill",		std::string()},
+				{"standby time",	std::string()},
+				{"standby temp.",	std::string()},
+				{"save",			std::string()},
+				{"calibrate gun",	std::string()},
 				{"back to menu",	std::string()},
 				// IRON TIP CALIBRATION MENU
 				{"Calibrate",		std::string()},			// Title
@@ -137,9 +159,12 @@ class NLS_MSG {
 				{"NO config file",			std::string()},
 				{"No lang. specified",		std::string()},
 				{"No memory",				std::string()},
-				{"Inconsistent lang",		std::string()}
+				{"Inconsistent lang",		std::string()},
+				{"IPS",						std::string()},
+				{"TFT",						std::string()},
+				{"standby",					std::string()}
 		};
-		const t_msg_id menu[6] = { MSG_MENU_MAIN, MSG_MENU_SETUP, MSG_MENU_T12, MSG_MENU_JBC, MSG_MENU_CALIB, MSG_PID_MENU };
+		const t_msg_id menu[7] = { MSG_MENU_MAIN, MSG_MENU_SETUP, MSG_MENU_T12, MSG_MENU_JBC, MSG_MENU_GUN, MSG_MENU_CALIB, MSG_PID_MENU };
 };
 
 #endif
