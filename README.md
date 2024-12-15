@@ -21,3 +21,15 @@ Revesion history
   - Added new JBC tips to the tip list
 - Sep 08 2024, version 1.06
   - Added green progress bar to the automatic calibration screen indicating how fast the iron reaches the reference temperature
+- Dec 15 2024, version 1.08
+  - Added "max temperature" preference menu item
+  - Added support for IPS type of the display, ILI9341v
+  - Implemented pre-heat phase in the calibration mode
+  - Fixed incorrent ambient temperature readings issue
+  - Modified rotary encoder behavior to change Fan speed by 1%
+  - Fixed incorrect tip calibration flag issue
+  - Fisex incorrect translate temperatures greater than maximum possible (400 or 500 depending on device type) issue
+  - Fixed calibration issue in automatic calibration mode
+  - Updated JBC tip list
+  - Fixed issue in shutdown process of the Gun when it is not connected
+  - Fixed issue the Hot Gun safety relay was tuned on before the Fan is working properly
