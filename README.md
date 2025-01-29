@@ -33,3 +33,8 @@ Revesion history
   - Updated JBC tip list
   - Fixed issue in shutdown process of the Gun when it is not connected
   - Fixed issue the Hot Gun safety relay was tuned on before the Fan is working properly
+- Jan 28 2025, version 1.09
+  - Separate ambientTemp() into two routines to calculate stm32 temperature and steinhart sensor temperature inside Hakko T12 handle
+  - Save MCU internal temperature at startup to adjust internal temperature. As soon as the MCU temperature is higher than actual ambient temperature,
+  - return average value between MCU temperature and MCU temperature at startup.
+  - Changed the internalTemp() algorithm to read the calibration data from the controller registers 
