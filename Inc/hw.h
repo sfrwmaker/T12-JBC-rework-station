@@ -10,6 +10,10 @@
  *  	Added HW::t_stm32 and HW:vrefint variables to read the MCU temperature
  *  	Added HW::updateIntTemp()
  *  	Added new arguments to HW::init()
+ *  2025 JAN 28
+ *		Separate ambientTemp() into two routines to calculate stm32 temperature and steinhart sensor temperature inside Hakko T12 handle
+ *		Save MCU internal temperature at startup to adjust internal temperature. As soon as the MCU temperature is higher than actual ambient temperature,
+ *		return average value between MCU temperature and MCU temperature at startup.
  */
 
 #ifndef HW_H_
@@ -52,9 +56,12 @@ class HW {
 		HOTGUN		hotgun;
 		BUZZER		buzz;
 	private:
+		int32_t 			internalTemp(int32_t raw_stm32);
+		int32_t 			steinhartTemp(int32_t raw_ambient);
 		EMP_AVERAGE 	t_amb;								// Exponential average of the ambient temperature
 		EMP_AVERAGE		t_stm32;							// Exponential average of the internal stm32 MCU temperature
 		EMP_AVERAGE		vrefint;							// Exponential average of the VREF value
+		int8_t			start_temp			= 0;			// The internal temperature at startup
 		const uint8_t	ambient_emp_coeff	= 30;			// Exponential average coefficient for ambient temperature
 		const uint16_t	max_ambient_value	= 3900;			// About -30 degrees. If the soldering IRON disconnected completely, "ambient" value is greater than this
 };
