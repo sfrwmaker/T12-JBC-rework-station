@@ -304,15 +304,26 @@ void MWORK::manageHardwareSwitches(CFG* pCFG, IRON *pT12, IRON *pJBC, HOTGUN *pH
 
 void MWORK::adjustPresetTemp(void) {
 	CFG*	pCFG	= &pCore->cfg;
-	IRON*	pIron	= &pCore->t12;
+	IRON*	pT12	= &pCore->t12;
+	IRON*	pJBC	= &pCore->jbc;
 
-	uint16_t presetTemp	= pIron->presetTemp();
+	bool update_ambient = false;
+	uint16_t presetTemp	= pT12->presetTemp();
 	uint16_t tempH     	= pCFG->tempPresetHuman(d_t12);
 	uint16_t temp  		= pCFG->humanToTemp(tempH, ambient, d_t12); // Expected temperature of IRON in internal units
 	if (temp != presetTemp) {								// The ambient temperature have changed, we need to adjust preset temperature
-		pIron->adjust(temp);
-		pCore->dspl.drawAmbient(ambient, pCFG->isCelsius());
+		pT12->adjust(temp);
+		update_ambient = true;
 	}
+	presetTemp	= pJBC->presetTemp();
+	tempH     	= pCFG->tempPresetHuman(d_jbc);
+	temp  		= pCFG->humanToTemp(tempH, ambient, d_jbc); // Expected temperature of IRON in internal units
+	if (temp != presetTemp) {								// The ambient temperature have changed, we need to adjust preset temperature
+		pJBC->adjust(temp);
+		update_ambient = true;
+	}
+	if (update_ambient)
+		pCore->dspl.drawAmbient(ambient, pCFG->isCelsius());
 }
 
 bool MWORK::hwTimeout(bool tilt_active) {
