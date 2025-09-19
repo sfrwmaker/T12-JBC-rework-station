@@ -38,3 +38,11 @@ Revesion history
   - Save MCU internal temperature at startup to adjust internal temperature. As soon as the MCU temperature is higher than actual ambient temperature,
   - return average value between MCU temperature and MCU temperature at startup.
   - Changed the internalTemp() algorithm to read the calibration data from the controller registers 
+- Sep 19 2025, version 1.10
+  - Changed approach of the Hot Air Gun power applied. The active half-sine AC peaks that suppy power to the Hot Gun now are distributed evently. The PID parameters are revisited. Now the Hot Air Gun is working more smoothly.
+  - The maximum Hot Air Gun preset temperature increased to 550 Celsius.
+  - In the debug mode the Hot Air Gun fan value now painted green if the Gun is activated.
+  - Starting from now in the debug mode it is possible to manage the fan without powering the Hot Gun.
+  - Fixed issue with first-time JBC tip changing. No longer error message appeared.
+  - The preset temperature saved for sure in a while if it was changed. In the previous versions the temperature saved after the device was turned off.
+  - Some mirror bugs fixed.
