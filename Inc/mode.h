@@ -21,6 +21,11 @@
  *			Added MCALIB_MANUAL::manual_power parameter and MCALIB_MANUAL::max_manual_power constant
  * 2024 NOV 28
  * 		Removed unused parameter (ambient) from MCALIB_MANUAL::buildCalibration()
+ * 2025 SEP 17, v.1.10
+ * 		Removed MDEBUG::min_fan_speed, MDEBUG::max_fan_speed constants
+ * 		Implemented different maximum manual power for Hakko T12 and JBC irons in MCALIB class
+ * 		Added MCALIB::ref_ready_to, MCALIB::max_pwr_t12 and MCALIB::max_pwr_jbc constants
+ * 		Added MDEBUG::fan_is_on parameter to manually manage the Hot Air Gun fan
  *
  */
 
@@ -94,9 +99,11 @@ class MCALIB : public MODE {
 		enum {MC_OFF = 0, MC_GET_READY, MC_HEATING, MC_COOLING, MC_HEATING_AGAIN, MC_READY}
 					phase = MC_OFF;							// The Iron getting the Reference temperature phase
 		const uint16_t start_int_temp 	 = 600;				// Minimal temperature in internal units, about 100 degrees Celsius
+		const uint32_t ref_ready_to		 = 120000;			// The reach reference temperature timeout. We should be ready in 2 minutes
 		const uint32_t phase_change_time = 3000;
 		const uint32_t check_device_to	 = 5000;
-		const uint16_t max_manual_power  = 600;				// The maximal power could be applied to the iron in preparation phase
+		const uint16_t max_pwr_t12  	 = 600;				// The maximal power could be applied to the T12 iron in preparation phase
+		const uint16_t max_pwr_jbc  	 = 400;				// (600) The maximal power could be applied to the JBC iron in preparation phase
 };
 
 //---------------------- The calibrate tip mode: manual calibration --------------
@@ -216,11 +223,10 @@ class MDEBUG : public MODE {
 		uint16_t		old_ip 			= 0;				// Old IRON encoder value
 		uint16_t		old_fp			= 0;				// Old GUN encoder value
 		bool			gun_is_on 		= false;			// Flag indicating the gun is powered on
+		bool			fan_is_on		= false;			// Flag indicating the fan of the gun is powered on
 		bool			jbc_selected	= false;			// Flag indicating the JBC iron is selected
 		bool			iron_on			= true;				// Flag indicating the iron (JBC or T12) nis powered on
 		const uint16_t	max_iron_power 	= 800;
-		const uint16_t	min_fan_speed	= 800;
-		const uint16_t	max_fan_speed 	= 1999;
 		const uint8_t	gun_power		= 3;
 };
 

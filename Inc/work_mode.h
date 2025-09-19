@@ -2,6 +2,9 @@
  * work_mode.h
  *
  *      Author: Alex
+ *
+ * 2025 SEP 17, v.1.10
+ * 		Added MWORK::save_preset_to and MWORK::enc_changed_ms allowing to save the preset temperatures after the encoder rotated
  */
 
 #ifndef _WORK_MODE_H_
@@ -44,6 +47,7 @@ class MWORK : public DASH {
 		uint32_t		swoff_time		= 0;				// Time when to switch the IRON off by sotfware method (see swTimeout())
 		uint32_t		tilt_time		= 0;				// Time when to change tilt status (ms)s
 		uint32_t		check_jbc_tm	= 0;				// When to test the JBC IRON status
+		uint32_t		enc_changed_ms	= 0;				// The time when the encoder rotated, ms
 		int16_t  		ambient			= 0;				// The ambient temperature
 		bool			edit_temp		= true;				// The HOT AIR GUN Encoder mode (Edit Temp/Edit fan)
 		uint32_t		return_to_temp	= 0;				// Time when to return to temperature edit mode (ms)
@@ -52,6 +56,7 @@ class MWORK : public DASH {
 		const uint16_t	tilt_show_time	= 1500;				// Time the tilt icon to be shown
 		const uint32_t	check_jbc_to	= 500;				// When start checking the current through the JBC
 		const uint16_t	edit_fan_timeout = 3000;			// The time to edit fan speed (ms)
+		const uint32_t	save_preset_to	= 30000;			// The timeout ater encoder was rotated to save the preset temperatures
 };
 
 #endif

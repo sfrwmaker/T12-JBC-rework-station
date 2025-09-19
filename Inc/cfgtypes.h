@@ -70,7 +70,7 @@ struct s_config {
 	uint16_t	gun_low_temp;						// The Hot Gun low power temperature (C) or 0 if disabled
 	uint8_t		gun_off_timeout;					// The Hot Gun Automatic switch-off timeout in minutes [0 - 30]
 	uint16_t	bit_mask;							// See CFG_BIT_MASK
-	uint8_t		dspl_bright;						// The display brightness [1-100] %
+	uint8_t		dspl_bright;						// The display brightness [1-255]
 	uint8_t		dspl_rotation;						// The display rotation (TFT_ROTATION_0, TFT_ROTATION_90, TFT_ROTATION_180, TFT_ROTATION_270)
 	char		language[LANG_LENGTH];				// The language. LANG_LENGTH defined in vars.h
 };
