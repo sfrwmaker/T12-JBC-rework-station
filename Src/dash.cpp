@@ -3,19 +3,21 @@
  *   Author: Alex
  *
  * 2023 MAR 01, v1.01
- *	Modified the DASH::drawStatus(), DASH::showOffTimeout(), DASH::initEncoders()
+ *		Modified the DASH::drawStatus(), DASH::showOffTimeout(), DASH::initEncoders()
  * 2024 JUN 28, v.1.04
- *     Modified methods dealing with main screen for convenience
- *     DASH::enableJBC()
- *     DASH::disableJBC()
- *     DASH::enableGUN()
- *     DASH::disableGUN()
- *     DASH::enableT12()
- *     DASH::disableT12()
+ *     	Modified methods dealing with main screen for convenience
+ *     	DASH::enableJBC()
+ *     	DASH::disableJBC()
+ *     	DASH::enableGUN()
+ *     	DASH::disableGUN()
+ *     	DASH::enableT12()
+ *     	DASH::disableT12()
  * 2024 OCT 14, v.1.07
- * 	   Added DASH::gunStandby()
+ * 	   	Added DASH::gunStandby()
  * 2024 NOV 07, v.1.08
- * 	   Modified DASH::initEncoders() to use new functions, CFG_CORE::tempMin() and CFG_CORE::tempMax()
+ * 		Modified DASH::initEncoders() to use new functions, CFG_CORE::tempMin() and CFG_CORE::tempMax()
+ * 2025 SEP 19, v.1.10
+ *		Fixed DASH::ironPhase() error (break statement was missing)
  */
 
 #include "dash.h"
@@ -375,6 +377,7 @@ void DASH::ironPhase(tDevice dev, tIronPhase phase) {
 			break;
 		case IRPH_BOOST:
 			pD->msgBoost(pos);
+			break;
 		case IRPH_LOWPWR:
 			pD->msgStandby(pos);
 			break;

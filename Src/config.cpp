@@ -49,6 +49,9 @@
  *  	Modified CFG::humanToTemp() to correctly translate temperatures greater than maximum possible (400 or 500 depending on device type)
  *  2024 NOV 16
  *  	Modified the TIP_CFG::applyTipCalibtarion() to set the tip mask correctly
+ * 		Changed default PID coefficients of the Hot Air Gun in CFG_CORE::setPIDdefaults() method
+ * 		Fixed bug in CFG_CORE::tempMax() returned wrong maximum temperature of the Hot Air Gun
+ * 		Removed the play song calls from CFG::saveTipCalibtarion()
  */
 
 #include <stdlib.h>
@@ -332,14 +335,12 @@ bool CFG::saveTipCalibtarion(uint8_t index, uint16_t temp[4], uint8_t mask, int8
 		strncpy(tip.name, name, tip_name_sz);
 		int16_t tip_index = saveTipData(&tip);
 		if (tip_index >= 0) {
-			BUZZER::shortBeep();
 			tip_table[index].tip_index	= tip_index;
 			tip_table[index].tip_mask	= mask;
 			return true;
 		}
 	}
 	tip_table[index].tip_mask	&= ~TIP_CALIBRATED;			// The tip is not calibrated
-	BUZZER::failedBeep();
 	return false;
 }
 
@@ -503,10 +504,9 @@ uint16_t CFG_CORE::tempMax(tDevice dev, bool force_celsius) {
 
 uint16_t CFG_CORE::tempMax(tDevice dev, bool celsius, bool safe_iron_mode) {
 	uint16_t t = gun_temp_maxC;
-	if (safe_iron_mode)
-		t = iron_temp_maxC_safe;
-	else
-		t = iron_temp_maxC;
+	if (dev == d_t12 || dev == d_jbc) {
+		t = safe_iron_mode?iron_temp_maxC_safe:iron_temp_maxC;
+	}
 	if (!celsius) {											// Convert to Fahrenheit
 		t = celsiusToFahrenheit(t);
 		t += 10 - t % 10;									// Round right to be multiplied by 10
@@ -611,8 +611,8 @@ void CFG_CORE::setPIDdefaults(void) {
 	pid.jbc_Kp			= 1479;
 	pid.jbc_Ki			=   59;
 	pid.jbc_Kd			=  507;
-	pid.gun_Kp			=  200;
-	pid.gun_Ki			=   64;
+	pid.gun_Kp			=  100; // 200;
+	pid.gun_Ki			=   32; // 64;
 	pid.gun_Kd			=  195;
 };
 
@@ -682,7 +682,7 @@ void CFG_CORE::setup(bool buzzer, bool celsius, bool big_temp_step, bool i_enc, 
 	if (g_enc)			a_cfg.bit_mask |= CFG_L_CLOCKWISE;
 	if (ips_display)	a_cfg.bit_mask |= CFG_DSPL_TYPE;
 	if (safe_iron_mode)	a_cfg.bit_mask |= CFG_SAFE_MODE;
-	a_cfg.dspl_bright	= constrain(bright, 1, 100);
+	a_cfg.dspl_bright	= constrain(bright, 1, 255);
 	if (safe_iron_mode) {									// Limit the iron preset temperature
 		uint16_t t_max = tempMax(d_t12);					// Can use any IRON device, d_t12 or d_jbc; Temperature is in Celsius or Fahrenheit
 		if (a_cfg.t12_temp > t_max) a_cfg.t12_temp = t_max;

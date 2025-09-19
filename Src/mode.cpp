@@ -45,7 +45,11 @@
  * 		Fixed non-correct tip calibration data when canceled from both calibration procedures
  * 		Make sure the highest reference point is correct when safe iron mode activated
  * 		Modified MCALIB_MANUAL::init(), MCALIB_MANUAL::loop(), MCALIB_MANUAL::buildCalibration(), MCALIB::loop()
- *
+ * 2025 SEP 17, v.1.10
+ * 		Changed MDEBUG::init() to read min and max fan speed from the Hot Air Gun instance
+ * 		Modified the MDEBUG::loop() to manage the Hot Air Gun fan while the Gun is not powered
+ * 		Modified the MCALIB::buildFinishCalibration() to play song depending on saved the tip calibration or not
+ * 		Modified the MSLCT::init() to correctly check the JBC iron connectivity
  */
 
 #include <stdio.h>
@@ -125,6 +129,14 @@ void MSLCT::init(void) {;
 		if ((delta = abs(tip_index - tip_list[i].tip_index)) < diff) {
 			diff 	= delta;
 			closest = i;
+		}
+	}
+	UNIT* pUnit	= unit();
+	if (dev_type == d_jbc && !pUnit->isConnected()) {		// The JBC iron does not checked at startup, wait for checking
+		uint32_t to = HAL_GetTick() + 1000;					// The checking timeout
+		while (HAL_GetTick() < to) {
+			if (pUnit->isConnected())						// The JBC iron is detected
+				break;
 		}
 	}
 	pCore->l_enc.reset(closest, 0, list_len-1, 1, 1, false);
@@ -298,7 +310,7 @@ void MCALIB::init(void) {
 	update_screen 	= 0;
 	tip_temp_max 	= int_temp_max / 2;							// The maximum possible temperature defined in iron.h
 	manual_power	= 0;										// The fixed power for the preparation phase
-	pCore->u_enc.reset(manual_power, 0, max_manual_power, 2, 10, false);
+	pCore->u_enc.reset(manual_power, 0, (dev_type==d_jbc)?max_pwr_jbc:max_pwr_t12, 2, 10, false);
 	const char *calibrate = pCore->dspl.msg(MSG_MENU_CALIB);	// "Calibrate <tip name>"
 	uint8_t len = strlen(calibrate);
 	if (len > 19) len = 19;										// Limit maximum string length
@@ -400,7 +412,6 @@ void MCALIB::updateReference(uint8_t indx) {					// Update reference points
 	}
 }
 
-
 void MCALIB::buildFinishCalibration(void) {
 	CFG* 	pCFG 	= &pCore->cfg;
 	uint16_t tip[4];
@@ -420,6 +431,7 @@ void MCALIB::buildFinishCalibration(void) {
 		int16_t ambient 	= pCore->ambientTemp();
 		bool ok = pCFG->saveTipCalibtarion(tip_index, tip, TIP_ACTIVE | TIP_CALIBRATED, ambient);
 		pCFG->applyTipCalibtarion(tip, ambient, dev_type, ok);
+		if (ok) pCore->buzz.shortBeep(); else pCore->buzz.failedBeep();
 	} else {
 		pCore->buzz.failedBeep();
 		pCFG->resetTipCalibration(dev_type);
@@ -494,7 +506,7 @@ MODE* MCALIB::loop(void) {
 				phase = (temp_set < temp)?MC_GET_READY:MC_HEATING;	// Start heating the Iron
 				pUnit->setTemp(temp_set);
 				pUnit->switchPower(true);
-				ready_to 		= HAL_GetTick() + 120000;		// We should be ready in 2 minutes
+				ready_to 		= HAL_GetTick() + ref_ready_to;	// The reach reference temperature timeout
 				phase_change	= HAL_GetTick() + phase_change_time;
 				check_device_tm = HAL_GetTick() + check_device_to;
 			} else {											// All reference points are entered
@@ -1371,7 +1383,6 @@ MODE* MABOUT::loop(void) {
 		return flash_debug;									// Activate flash debug mode
 	}
 
-
 	if (HAL_GetTick() < update_screen) return this;
 	update_screen = HAL_GetTick() + 60000;
 
@@ -1382,11 +1393,14 @@ MODE* MABOUT::loop(void) {
 //---------------------- The Debug mode: display internal parameters ------------
 void MDEBUG::init(void) {
 	pCore->u_enc.reset(0, 0, max_iron_power, 2, 10, false);
+	uint16_t min_fan_speed = pCore->hotgun.minFanSpeed();
+	uint16_t max_fan_speed = pCore->hotgun.maxFanSpeed();
 	pCore->l_enc.reset(min_fan_speed, min_fan_speed, max_fan_speed,  5, 10, false);
 	pCore->dspl.clear();
 	pCore->dspl.drawTitleString("Debug info");
 	jbc_selected	= !pCore->jbc.isReedSwitch(true);		// The jbc IRON is in use, manage it, not T12
 	gun_is_on		= false;
+	fan_is_on		= false;
 	iron_on			= true;
 	update_screen = 0;
 }
@@ -1411,9 +1425,13 @@ MODE* MDEBUG::loop(void) {
 	}
 	if (pCore->u_enc.buttonStatus()) {						// Switch the power off quickly
 		iron_on = !iron_on;
-		if (!iron_on)
+		if (iron_on)
+			pIron->fixPower(pwr);
+		else
 			pIron->switchPower(false);
 	}
+
+	// Manage the lower encoder, Hot Air Gun
 	pwr = pCore->l_enc.read();
 	if (pwr != old_fp) {
 		old_fp = pwr;
@@ -1424,20 +1442,36 @@ MODE* MDEBUG::loop(void) {
 			pHG->fixPower(0);
 	}
 
+	// Manage the Hot Air Gun reed switch
 	if (pHG->isReedSwitch(true)) {							// True means REED switch, not TILT one
 		if (!gun_is_on) {
 			pHG->setFan(old_fp);
 			pHG->fixPower(gun_power);
 			gun_is_on = true;
+			fan_is_on = true;
 		}
 	} else {
 		if (gun_is_on) {
 			pHG->fixPower(0);
 			gun_is_on = false;
+			fan_is_on = false;
 		}
 	}
 
-	if (pCore->l_enc.buttonStatus() == 2) {					// The Hot Air Gun button was pressed for a long time, exit debug mode
+	// Manage the Hot Air Gun encoder button
+	uint8_t low_button = pCore->l_enc.buttonStatus();
+	if (low_button == 1) {									// The Hot Air Gun button was shortly pressed, toggle the fan
+		if (pHG->isCold()) {								// The Hot Air Gun is in 'OFF' mode
+			if (!fan_is_on) {
+				fan_is_on = true;							// Turn the Hot Air Gun fan ON
+				pHG->setFan(pwr);
+				pHG->fanControl(fan_is_on);
+			} else {
+				fan_is_on = false;							// Turn the Hot Air Gun fan ON
+				pHG->fanControl(fan_is_on);
+			}
+		}
+	} else if (low_button == 2) {							// The Hot Air Gun button was pressed for a long time, exit debug mode
 	   	return mode_lpress;
 	}
 
@@ -1456,7 +1490,7 @@ MODE* MDEBUG::loop(void) {
 	data[4]	= pCore->t12.temp();							// t12 temperature
 	data[5]	= pCore->jbc.temp();							// jbc temperature
 	data[6] = pIron->reedInternal();						// t12 or jbc internal tilt switch
-	data[7]	= old_fp;										// Hot Air Gun power
+	data[7]	= old_fp;										// Hot Air Gun Fan speed
 	data[8]	= gtimPeriod();									// GUN_TIM period
 	data[9]	= pHG->unitCurrent();
 	data[10] = pCore->ambientRaw();

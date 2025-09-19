@@ -105,7 +105,7 @@ void MSETUP::init(void) {
 	safe_iron_mode	= pCFG->isSafeIronMode();
 	lang_index		= pCore->nls.languageIndex();
 	num_lang		= pCore->nls.numLanguages();
-	dspl_bright		= pCFG->getDsplBrightness();		// Brightness [0-100]
+	dspl_bright		= pCFG->getDsplBrightness();				// Brightness [1-255]
 	dspl_rotation	= pCFG->getDsplRotation();
 	set_param		= 0;
 	uint8_t menu_len = pCore->dspl.menuSize(MSG_MENU_SETUP);

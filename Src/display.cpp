@@ -14,6 +14,8 @@
  * 		Added DSPL::drawGunStandby()
  * 2024 NOV 05, v.1.08
  *  	Implemented the pre-heat phase in calibration modes: modified the DSPL::calibShow() and DSPL::calibManualShow()
+ * 2025 SEP 15, v.1.10
+ * 		Changed the DSPL::debugShow(). Now color of the fan speed is green
  */
 
 #include <string.h>
@@ -1136,7 +1138,8 @@ void DSPL::debugShow(uint16_t data[12], bool t12_on, bool jbc_on, bool gun_on, b
 		sprintf(buff, "%5d", data[2*i+1]);								// Right column value string
 		strToBitmap(bm, item_name[2*i+1], align_left);					// Right column name
 		strToBitmap(bm, buff, align_right);
-		if ((i == 0 && jbc_on) || (i == 3 && gun_on)) clr = gd_color;
+		if (i == 0 && jbc_on) clr = gd_color;
+		if (i == 3 && gun_on) clr = pr_color;
 		drawBitmap(width()/2+10, top+i*h, bm, bg_color, clr);
 		bm.clear();
 	}

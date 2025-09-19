@@ -2,9 +2,11 @@
  * pid.cpp
  *
  * 2023 FEB 19, v1.01
- *  Introduced the heating-up PID parameters: Kp_force and Ki_force
- *  Changed the methods: PID::init(), PID::load(), PID::reqPower()
- *  When the temperature is far lower than the preset one, the aggressive PID parameters are used
+ * 		Introduced the heating-up PID parameters: Kp_force and Ki_force
+ *  	Changed the methods: PID::init(), PID::load(), PID::reqPower()
+ *  	When the temperature is far lower than the preset one, the aggressive PID parameters are used
+ * 2025 MAY 21, v.1.10
+ * 		Deleted twice initializing of power variable in PID::reqPower()
  */
 
 #include "pid.h"
@@ -44,12 +46,6 @@ void PID::init(uint16_t ms, uint8_t denominator_p, bool heat_force) { // PID par
 	Ki_force	= 5;
 	this->denominator_p = denominator_p;
 	use_force	= heat_force;
-}
-
-void PID::resetPID(uint16_t t) {
-	temp_h0 		= t;
-	temp_h1 		= t;
-	power  			= 0;
 }
 
 int32_t PID::changePID(uint8_t p, int32_t k) {
@@ -96,10 +92,15 @@ void PID::newPIDparams(uint16_t delta_power, uint32_t diff, uint32_t period) {
 	if (Kd > 10000) Kd = Kp/2;
 }
 
+void PID::resetPID(uint16_t t) {
+	temp_h0 = t;
+	temp_h1	= t;
+	power 	= 0;
+}
+
 int32_t PID::reqPower(int16_t temp_set, int16_t temp_curr) {
 	if (use_force && temp_curr + 100 < temp_set) {			// Aggressive heat-up mode, use Kp_force and Ki_forse only
 		if (temp_h0 == 0) {									// Use direct formulae because do not know previous temperature
-			power 		= 0;
 			int32_t	i_summ 	= temp_set - temp_curr;
 			power = Kp_force*(temp_set - temp_curr) + Ki_force * i_summ;
 		} else {
@@ -110,7 +111,6 @@ int32_t PID::reqPower(int16_t temp_set, int16_t temp_curr) {
 		}
 	} else {												// Use regular PID parameters near preset temperature
 		if (temp_h0 == 0) {									// Use direct formulae because do not know previous temperature
-			power 		= 0;
 			int32_t	i_summ 	= temp_set - temp_curr;
 			power = Kp*(temp_set - temp_curr) + Ki * i_summ;
 		} else {

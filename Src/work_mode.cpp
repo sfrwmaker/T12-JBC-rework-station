@@ -22,6 +22,8 @@
  * 	   Changed MWORK::manageHardwareSwitches(), MWORK::manageEncoders() to implement Hot Gun standby mode
  * 2024 NOV 06, v.1.08
  * 		Modified MWORK::manageEncoders() to change Fan speed by 1%
+ * 2025 SEP 17, v.1.10
+ * 		Modified the MWORK::loop() and MWORK::manageEncoders() to save the preset temperature after save_preset_to timeout the encoder was rotated
  */
 
 #include "work_mode.h"
@@ -85,7 +87,7 @@ MODE* MWORK::loop(void) {
 	manageHardwareSwitches(pCFG, pT12, pJBC, pHG);
 
 	// Check the JBC IRON tip change switch
-	if (mode_spress && pJBC->isChanging()) {
+	if (mode_spress && u_dev == d_jbc && pJBC->isChanging()) {
 		mode_spress->useDevice(d_jbc);
 		return mode_spress;
 	}
@@ -196,6 +198,12 @@ MODE* MWORK::loop(void) {
 
 	adjustPresetTemp();
 	drawStatus(t12_phase, jbc_phase, ambient);
+
+	// Check to save preset temperature
+	if (enc_changed_ms > 0 && enc_changed_ms + save_preset_to <= HAL_GetTick()) {
+		enc_changed_ms = 0;
+		pCFG->saveConfig();
+	}
 	return this;
 }
 
@@ -531,6 +539,7 @@ bool MWORK::manageEncoders(void) {
     		}
     	}
     	update_screen = 0;
+    	enc_changed_ms = HAL_GetTick();						// The preset temperature just has been changed
     }
 
     temp_set_h		= pCore->l_enc.read();
@@ -590,6 +599,7 @@ bool MWORK::manageEncoders(void) {
 				return_to_temp	= HAL_GetTick() + edit_fan_timeout;
 			}
 			pCFG->saveGunPreset(t, f);
+			enc_changed_ms = HAL_GetTick();					// The preset temperature just has been changed
     	}
     }
 

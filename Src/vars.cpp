@@ -2,6 +2,9 @@
  * vars.cpp
  *
  *  Author: Alex
+ *
+ * 	2025 SEP 17, v1.10
+ * 		Changed maximum Hot Air Gun temperature to 550 degrees
  */
 
 #include "vars.h"
@@ -15,7 +18,7 @@ const uint16_t	iron_temp_minC				= 180;			// Minimum IRON calibration temperatur
 const uint16_t 	iron_temp_maxC_safe 		= 350;			// Maximum IRON calibration temperature in degrees of Celsius in safe mode
 const uint16_t 	iron_temp_maxC 				= 450;			// Maximum IRON calibration temperature in degrees of Celsius
 const uint16_t	gun_temp_minC				= 80;			// Minimum Hot Air Gun calibration temperature in degrees of Celsius
-const uint16_t 	gun_temp_maxC 				= 500;			// Maximum Hot Air Gun calibration temperature in degrees of Celsius
+const uint16_t 	gun_temp_maxC 				= 550;			// Maximum Hot Air Gun calibration temperature in degrees of Celsius
 
 const uint8_t	default_ambient				= 25;
 const TCHAR		nsl_cfg[9]					= {'c', 'f', 'g', '.', 'j', 's', 'o', 'n', '\0'};

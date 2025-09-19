@@ -1,6 +1,8 @@
 /*
  * stat.cpp
  *
+ *  2025 SEP 19
+ *  	Added state parameter to the SWITCH::init() method to initialize instance correctly
  */
 
 #include "stat.h"
@@ -61,12 +63,14 @@ uint32_t HIST::dispersion(void) {
 	return sum;
 }
 
-void SWITCH::init(uint8_t h_len, uint16_t off, uint16_t on) {
+void SWITCH::init(uint8_t h_len, uint16_t off, uint16_t on, bool state) {
 	EMP_AVERAGE::length(h_len);
     if (on < off) on = off;
     on_val    	= on;
     off_val   	= off;
-    mode		= false;
+    sw_changed	= false;
+    reset(state?on_val:off_val);
+    mode		= state;
 }
 
 
