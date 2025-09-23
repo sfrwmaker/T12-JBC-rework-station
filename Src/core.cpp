@@ -284,7 +284,7 @@ extern "C" void setup(void) {
 #ifdef DEBUG_ON
 	core.dspl.BRGT::on();
 #endif
-	HAL_Delay(200);											// Wait at lease 0.2s to update the T12 iron tip status
+	HAL_Delay(500);											// Wait at least 0.5s to update the T12 iron tip connection status
 	pMode->init();
 }
 
