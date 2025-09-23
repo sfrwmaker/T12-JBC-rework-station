@@ -46,3 +46,5 @@ Revesion history
   - Fixed issue with first-time JBC tip changing. No longer error message appeared.
   - The preset temperature saved for sure in a while if it was changed. In the previous versions the temperature saved after the device was turned off.
   - Some mirror bugs fixed.
+- Sep 23 2025, version 1.11
+  - Fixed garbage messages at startup. 
