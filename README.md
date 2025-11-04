@@ -47,4 +47,8 @@ Revesion history
   - The preset temperature saved for sure in a while if it was changed. In the previous versions the temperature saved after the device was turned off.
   - Some mirror bugs fixed.
 - Sep 23 2025, version 1.11
-  - Fixed garbage messages at startup. 
+  - Fixed garbage messages at startup.
+- Nov 04 2025, version 1.12
+  - Fixed issue with updatting the active tip list: Flash write error while deactivating some tip
+  - Added support for Hot Air Gun with 12v fan. Now the fan voltage can be selected in the Hot Air Gun menu.
+  - Improved manual calibration procedure.
