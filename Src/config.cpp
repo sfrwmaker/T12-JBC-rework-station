@@ -52,6 +52,11 @@
  * 		Changed default PID coefficients of the Hot Air Gun in CFG_CORE::setPIDdefaults() method
  * 		Fixed bug in CFG_CORE::tempMax() returned wrong maximum temperature of the Hot Air Gun
  * 		Removed the play song calls from CFG::saveTipCalibtarion()
+ *  2025 NOV 03, v.1.12
+ *  	Added support for Hot Air Gun with 12v fan
+ *  	Added CFG_CORE::minFanSpeed(), CFG_CORE::maxFanSpeed(), CFG_CORE::isFan24v(), CFG_CORE::gunFanPresetPcnt()
+ *  	Modified CFG_CORE::gunFanPreset()
+ *  	Added new parameter into CFG_CORE::setupGUN()
  */
 
 #include <stdlib.h>
@@ -587,7 +592,7 @@ void CFG_CORE::setDefaults(void) {
 	a_cfg.t12_temp			= 235;
 	a_cfg.jbc_temp			= 235;
 	a_cfg.gun_temp			= 200;
-	a_cfg.gun_fan_speed		= 1200;
+	a_cfg.gun_fan_speed		= 30;
 	a_cfg.t12_off_timeout	= 5;//0;
 	a_cfg.t12_low_temp		= 180;//0;
 	a_cfg.t12_low_to		= 5;
@@ -625,6 +630,21 @@ PIDparam CFG_CORE::pidParamsSmooth(tDevice dev) {
 	} else {
 		return PIDparam(500, 3, 1700);
 	}
+}
+
+uint16_t CFG_CORE::gunFanPreset(void) {
+	const uint16_t *p = (a_cfg.bit_mask & CFG_FAN_24)?fan_speed_24v:fan_speed_12v;
+	return map(a_cfg.gun_fan_speed, 0, 100, p[0], p[1]);
+}
+
+uint16_t CFG_CORE::minFanSpeed(void) {
+	const uint16_t *p = (a_cfg.bit_mask & CFG_FAN_24)?fan_speed_24v:fan_speed_12v;
+	return p[0];
+}
+
+uint16_t CFG_CORE::maxFanSpeed(void) {
+	const uint16_t *p = (a_cfg.bit_mask & CFG_FAN_24)?fan_speed_24v:fan_speed_12v;
+	return p[1];
 }
 
 uint8_t	CFG_CORE::getOffTimeout(tDevice dev) {
@@ -712,11 +732,16 @@ void CFG_CORE::setupJBC(uint8_t off_timeout, uint16_t stby_temp) {
 	a_cfg.jbc_off_timeout	= constrain(off_timeout, 0, 30);
 }
 
-void CFG_CORE::setupGUN(bool fast_gun_chill, uint8_t stby_timeout, uint16_t stby_temp) {
+void CFG_CORE::setupGUN(bool fast_gun_chill, bool is_fan_24v, uint8_t stby_timeout, uint16_t stby_temp) {
 	if (fast_gun_chill) {
 		a_cfg.bit_mask		|= CFG_FAST_COOLING;
 	} else {
 		a_cfg.bit_mask		&= ~CFG_FAST_COOLING;
+	}
+	if (is_fan_24v) {
+		a_cfg.bit_mask		|= CFG_FAN_24;
+	} else {
+		a_cfg.bit_mask		&= ~CFG_FAN_24;
 	}
 	a_cfg.gun_off_timeout	= stby_timeout;
 	a_cfg.gun_low_temp		= stby_temp;
@@ -729,9 +754,10 @@ void CFG_CORE::savePresetTempHuman(uint16_t temp_set, tDevice dev_type) {
 		a_cfg.jbc_temp = temp_set;
 }
 
-void CFG_CORE::saveGunPreset(uint16_t temp_set, uint16_t fan) {
+void CFG_CORE::saveGunPreset(uint16_t temp_set, uint8_t fan) {
 	a_cfg.gun_temp 		= temp_set;
-	a_cfg.gun_fan_speed	= fan;
+	if (fan <= 100)
+		a_cfg.gun_fan_speed	= fan;
 }
 
 void CFG_CORE::syncConfig(void)	{

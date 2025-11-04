@@ -21,6 +21,8 @@
  *		Save MCU internal temperature at startup to adjust internal temperature. As soon as the MCU temperature is higher than actual ambient temperature,
  *		return average value between MCU temperature and MCU temperature at startup.
  *		Changed the internalTemp() algorithm to read the calibration data from the controller registers
+ *	2025 NOV 03, v.1.12
+ *		Modified the HW::init() to initialize the Hot Air Gun fan speed limits
  */
 
 #include <math.h>
@@ -70,6 +72,9 @@ CFG_STATUS HW::init(uint16_t t12_temp, uint16_t jbc_temp, uint16_t gun_temp, uin
 	hotgun.load(pp);
 	bool fast_cooling	=	cfg.isFastGunCooling();
 	hotgun.setFastGunCooling(fast_cooling);
+	uint16_t min_speed	=	cfg.minFanSpeed();
+	uint16_t max_speed	=	cfg.maxFanSpeed();
+	hotgun.setFanLimits(min_speed, max_speed);
 	buzz.activate(cfg.isBuzzerEnabled());
 	u_enc.setClockWise(cfg.isUpperEncClockWise());
 	l_enc.setClockWise(cfg.isLowerEncClockWise());

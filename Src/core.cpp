@@ -106,7 +106,7 @@ volatile static bool		jbc_phase	= true;				// JBC or T12 active phase, see descr
 volatile static uint16_t	t12_power	= 0;				// Calculated power of T12 iron
 volatile static uint16_t	jbc_power	= 0;				// Calculated power of JBC iron
 volatile static uint16_t	gun_pwr[MAX_GUN_POWER*2] = {0};	// The HOT GUN power PWM buffer
-static 	EMP_AVERAGE			gtim_period;					// gun timer period (ms)
+static	EXPA				gtim_period;					// gun timer period (ms)
 static  uint16_t  			max_iron_pwm	= 0;			// Max value should be less than TIM5.CH3 value by 40. Will be initialized later
 volatile static uint32_t	gtim_last_ms	= 0;			// Time when the gun timer became zero
 const static	uint16_t  	max_gun_pwm		= 99;			// TIM1 period. Full power can be applied to the HOT GUN

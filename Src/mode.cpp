@@ -1,55 +1,57 @@
 /*
  * mode.cpp
  *
- * 2022 DEC, v.1.00
+ *  2022 DEC, v.1.00
  *     Added restore_power_ms to the MCALIB_MANUAL::loop() method to stop powering the iron when you try to decrease the preset temperature
- * 2023 FEB 20, v.1.01
+ *  2023 FEB 20, v.1.01
  *     Modified the MCALIB_MANUAL::loop(). Changed the encoder small and big step to simplify adjustment of the reference point temperature.
- * 2023 SEP 05 2023
+ *  2023 SEP 05 2023
  *     Modified the MTACT::init(): minimal tip_index value is 1 in l_enc.reset()
- * 2023 SEP 10, v. 1.03
+ *  2023 SEP 10, v. 1.03
  *     Added initialization of start_c_check and keep_graph in MAUTOPID::init()
  *     Modified the MAUTOPID::loop() to start checking of current through the UNIT after a while
  *     Modified MAUTOPID::loop(): initialize keep_gpath flag when going to call manual_pid
  *     Modified MAUTOPID::clean(): free the graph and PIXMAP data when no keep_graph flag setup
  *     Modified MAUTOPID::init(): td_limit for d_t12 changed from 6 to 60
- * 2024 MAR 30
+ *  2024 MAR 30
  *	   Changed the MFAIL::loop() to manage long press of gun encoder button
  *	   Changed MTACT::loop() to set the error message when FLASH write error occurs
- * 2024 SEP 07, v 1.06
+ *  2024 SEP 07, v 1.06
  * 	   Changed MCALIB::loop() to check the calibrating phase
- * 2024 OCT 06, v.1.07
+ *  2024 OCT 06, v.1.07
  * 	   Fixed non-correct GUN connected detection bug in MTPID::loop() by using check_fan variable.
- * 2024 NOV 05, v.1.08
+ *  2024 NOV 05, v.1.08
  * 	   Modified MCALIB_MANUAL::init() and MCALIB_MANUAL::loop() to skip the 400 degrees reference point in safe iron mode
  * 	   Implemented pre-heat phase in the calibration mode, when it is possible to heat-up the iron to apply solder drop
  * 	   	Initialized upper rotary encoder in MCALIB::init() and MCALIB_MANUAL::init()
  * 	   	Modified MCALIB::loop() and MCALiB_MANUAL::loop() to supply fixed power to the iron in the pre-heat mode
  * 	   Added quit option into MCALIB:loop() and MCALIB_MANUAL::loop(): long-press the upper encoder to quit calibration procedure
  * 	   Changed high temperature limit in MCALIB::loop(): r_temp < pCFG->tempMaxC(dev_type) - 30
- * 2024 NOV 07
+ *  2024 NOV 07
  * 	   Modified MCALIB::loop() and MCALIB::updateReference() to use new functions, CFG_CORE::tempMin() and CFG_CORE::tempMax()
- * 2024 NOV 08, v.1.08
+ *  2024 NOV 08, v.1.08
  * 	   Replaced the ambientInternal() to ambientRaw() in MDEBUG::loop()
- * 2024 NOV 09
+ *  2024 NOV 09
  * 		Modified MCALIB::buildFinishCalibration():
  * 			apply the tip calibration data if the calibration data saved successfully
  * 			adjust maximal reference temperature more accurately
  * 		Modified MCALIB_MANUAL::loop(): apply the tip calibration data if the calibration data saved successfully
- * 2024 NOV 28
+ *  2024 NOV 28
  * 		Modified MCALIB::closestIndex()
  * 		Modified MCALIB::buildFinishCalibration()
  * 		Modified MCALIB_MANUAL::loop()
  * 		Modified MCALIB_MANUAL::buildCalibration()
- * 2024 DEC 04
+ *  2024 DEC 04
  * 		Fixed non-correct tip calibration data when canceled from both calibration procedures
  * 		Make sure the highest reference point is correct when safe iron mode activated
  * 		Modified MCALIB_MANUAL::init(), MCALIB_MANUAL::loop(), MCALIB_MANUAL::buildCalibration(), MCALIB::loop()
- * 2025 SEP 17, v.1.10
+ *  2025 SEP 17, v.1.10
  * 		Changed MDEBUG::init() to read min and max fan speed from the Hot Air Gun instance
  * 		Modified the MDEBUG::loop() to manage the Hot Air Gun fan while the Gun is not powered
  * 		Modified the MCALIB::buildFinishCalibration() to play song depending on saved the tip calibration or not
  * 		Modified the MSLCT::init() to correctly check the JBC iron connectivity
+ * 	2025 NOV 03, v.1.12
+ * 		Updated MDEBUG::init() and MDEBUG::loop() to support Hot Air Gun fan 12v
  */
 
 #include <stdio.h>
@@ -328,38 +330,21 @@ void MCALIB::init(void) {
  * b = 1/N * (sum(Yi) - a * sum(Xi))
  */
 bool MCALIB::calibrationOLS(uint16_t* tip, uint16_t min_temp, uint16_t max_temp) {
-	long sum_XY = 0;											// sum(Xi * Yi)
-	long sum_X 	= 0;											// sum(Xi)
-	long sum_Y  = 0;											// sum(Yi)
-	long sum_X2 = 0;											// sum(Xi^2)
-	long N		= 0;
-
+	bool filter[MCALIB_POINTS];
 	for (uint8_t i = 0; i < MCALIB_POINTS; ++i) {
 		uint16_t X 	= calib_temp[0][i];
-		uint16_t Y	= calib_temp[1][i];
-		if (X >= min_temp && X <= max_temp) {
-			sum_XY 	+= X * Y;
-			sum_X	+= X;
-			sum_Y   += Y;
-			sum_X2  += X * X;
-			++N;
+		filter[i]	= (X >= min_temp && X <= max_temp);
+	}
+	if (ols.loadOLS(calib_temp[0], calib_temp[1], filter, MCALIB_POINTS)) {
+		uint16_t ref_temp[4];
+		for (uint8_t i = 0; i < 4; ++i) {
+			ref_temp[i] = pCore->cfg.referenceTemp(i, dev_type);
 		}
+		ols.approximate(ref_temp, tip, 4);
+		if (tip[3] > int_temp_max) tip[3] = int_temp_max;			// Maximal possible temperature (main.h)
+		return true;
 	}
-
-	if (N <= 2)													// Not enough real temperatures have been entered
-		return false;
-
-	double	a  = (double)N * (double)sum_XY - (double)sum_X * (double)sum_Y;
-			a /= (double)N * (double)sum_X2 - (double)sum_X * (double)sum_X;
-	double 	b  = (double)sum_Y - a * (double)sum_X;
-			b /= (double)N;
-
-	for (uint8_t i = 0; i < 4; ++i) {
-		double temp = a * (double)pCore->cfg.referenceTemp(i, dev_type) + b;
-		tip[i] = round(temp);
-	}
-	if (tip[3] > int_temp_max) tip[3] = int_temp_max;			// Maximal possible temperature (main.h)
-	return true;
+	return false;
 }
 
 // Find the index of the reference point with the closest temperature
@@ -675,36 +660,27 @@ void MCALIB_MANUAL::init(void) {
 // And the difference between next points is greater than req_diff
 // Change neighborhood temperature data to keep this difference
 void MCALIB_MANUAL::buildCalibration(uint16_t tip[], uint8_t ref_point) {
+	// Use OLS to calculate calibration data in reference point that was not calibrated yet
+	uint16_t ref_temp[4];
+	for (uint8_t i = 0; i < 4; ++i) {
+		ref_temp[i] = pCore->cfg.referenceTemp(i, dev_type);
+	}
+	if (ols.loadOLS(ref_temp, calib_temp, calib_flag, 4)) {
+		ols.approximate(ref_temp, tip, 4);
+		for (uint8_t i = 0; i < 4; ++i) {
+			if (calib_flag[i]) {
+				tip[i] = calib_temp[i];							// Restore calibrated reference point data
+			} else {
+				calib_temp[i] = tip[i];							// Update not-calibrated reference point data
+			}
+		}
+		if (tip[3] > int_temp_max) tip[3] = int_temp_max;		// int_temp_max is a maximum possible temperature (vars.cpp)
+		return;
+	}
+	for (uint8_t i = 0; i < 4; ++i) {
+		tip[i] = calib_temp[i];
+	}
 	if (tip[3] > int_temp_max) tip[3] = int_temp_max;			// int_temp_max is a maximum possible temperature (vars.cpp)
-
-	const int req_diff = 200;
-	if (ref_point <= 3) {										// tip[0-3] - internal temperature readings for the tip at reference points (200-400)
-		for (uint8_t i = ref_point; i <= 2; ++i) {				// ref_point is 0 for 200 degrees and 3 for 400 degrees
-			int diff = (int)tip[i+1] - (int)tip[i];
-			if (diff < req_diff) {
-				tip[i+1] = tip[i] + req_diff;					// Increase right neighborhood temperature to keep the difference
-			}
-		}
-		if (tip[3] > int_temp_max)								// The high temperature limit is exceeded, temp_max. Lower all calibration
-			tip[3] = int_temp_max;
-
-		for (int8_t i = 3; i > 0; --i) {
-			int diff = (int)tip[i] - (int)tip[i-1];
-			if (diff < req_diff) {
-				int t = (int)tip[i] - req_diff;					// Decrease left neighborhood temperature to keep the difference
-				if (t < 0) t = 0;
-				tip[i-1] = t;
-			}
-		}
-	}
-	// Calculate the highest reference temperature
-	if (pCore->cfg.isSafeIronMode() && calib_flag[0] && calib_flag[2]) {
-		uint16_t ref_t0 = pCore->cfg.referenceTemp(0, dev_type);
-		uint16_t ref_t2 = pCore->cfg.referenceTemp(2, dev_type);
-		uint16_t ref_t3 = pCore->cfg.referenceTemp(3, dev_type);
-		tip[3] = emap(ref_t3, ref_t0, ref_t2, tip[0], tip[3]);
-		if (tip[3] > int_temp_max) tip[3] = int_temp_max;
-	}
 }
 
 void MCALIB_MANUAL::restorePIDconfig(CFG *pCFG, UNIT* pUnit) {
@@ -1393,8 +1369,8 @@ MODE* MABOUT::loop(void) {
 //---------------------- The Debug mode: display internal parameters ------------
 void MDEBUG::init(void) {
 	pCore->u_enc.reset(0, 0, max_iron_power, 2, 10, false);
-	uint16_t min_fan_speed = pCore->hotgun.minFanSpeed();
-	uint16_t max_fan_speed = pCore->hotgun.maxFanSpeed();
+	uint16_t min_fan_speed = pCore->cfg.minFanSpeed();
+	uint16_t max_fan_speed = pCore->cfg.maxFanSpeed();
 	pCore->l_enc.reset(min_fan_speed, min_fan_speed, max_fan_speed,  5, 10, false);
 	pCore->dspl.clear();
 	pCore->dspl.drawTitleString("Debug info");
@@ -1436,10 +1412,13 @@ MODE* MDEBUG::loop(void) {
 	if (pwr != old_fp) {
 		old_fp = pwr;
 		update_screen = 0;
-		if (gun_is_on)
+		if (gun_is_on) {
 			pHG->setFan(pwr);
-		else
-			pHG->fixPower(0);
+		} else if (fan_is_on) {
+			pHG->fanFixed(pwr);
+		} else {
+			pHG->fanFixed(0);
+		}
 	}
 
 	// Manage the Hot Air Gun reed switch
@@ -1464,11 +1443,10 @@ MODE* MDEBUG::loop(void) {
 		if (pHG->isCold()) {								// The Hot Air Gun is in 'OFF' mode
 			if (!fan_is_on) {
 				fan_is_on = true;							// Turn the Hot Air Gun fan ON
-				pHG->setFan(pwr);
-				pHG->fanControl(fan_is_on);
+				pHG->fanFixed(pwr);
 			} else {
 				fan_is_on = false;							// Turn the Hot Air Gun fan ON
-				pHG->fanControl(fan_is_on);
+				pHG->fanFixed(0);
 			}
 		}
 	} else if (low_button == 2) {							// The Hot Air Gun button was pressed for a long time, exit debug mode

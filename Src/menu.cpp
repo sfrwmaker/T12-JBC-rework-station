@@ -720,6 +720,7 @@ void MENU_GUN::init(void) {
 	CFG*	pCFG	= &pCore->cfg;
 	RENC*	pEnc	= &pCore->l_enc;
 	fast_gun_chill	= pCFG->isFastGunCooling();
+	is_fan_24v		= pCFG->isFan24v();
 	stby_timeout	= pCFG->getOffTimeout(d_gun);
 	stby_temp		= pCFG->getLowTemp(d_gun);
 	set_param		= -1;
@@ -777,11 +778,21 @@ MODE* MENU_GUN::loop(void) {
 					pEnc->reset(stby_temp, min_standby_C-1, max_standby_C, 1, 5, false);
 					break;
 					}
+				case MG_FAN_VOLTAGE:
+					is_fan_24v	= !is_fan_24v;
+					break;
 				case MG_SAVE:									// save
+				{
 					pD->BRGT::dim(50);							// Turn-off the brightness, processing
-					pCFG->setupGUN(fast_gun_chill, stby_timeout, stby_temp);
+					pCFG->setupGUN(fast_gun_chill, is_fan_24v, stby_timeout, stby_temp);
 					pCFG->saveConfig();
+					bool fast_cooling	= pCFG->isFastGunCooling();
+					pCore->hotgun.setFastGunCooling(fast_cooling);
+					uint16_t min_speed	= pCFG->minFanSpeed();
+					uint16_t max_speed	= pCFG->maxFanSpeed();
+					pCore->hotgun.setFanLimits(min_speed, max_speed);
 					return mode_return;
+				}
 				case MG_CALIBRATE:
 					if (mode_calibrate) {
 						mode_calibrate->useDevice(d_gun);
@@ -842,6 +853,13 @@ MODE* MENU_GUN::loop(void) {
 				}
 			} else {
 				strncpy(item_value, pD->msg(MSG_OFF), value_length);
+			}
+			break;
+		case MG_FAN_VOLTAGE:
+			if (is_fan_24v) {
+				strcpy(item_value, "24v");
+			} else {
+				strcpy(item_value, "12v");
 			}
 			break;
 		default:

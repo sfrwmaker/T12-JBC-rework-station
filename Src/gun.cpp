@@ -73,6 +73,11 @@ uint16_t HOTGUN::fanSpeed(void) {
 	return constrain(FAN_TIM.Instance->CCR1, 0, 1999);
 }
 
+void HOTGUN::setFanLimits(uint16_t min_speed, uint16_t max_speed) {
+	min_fan_speed = min_speed;
+	max_fan_speed = max_speed;
+}
+
 void HOTGUN::fanFixed(uint16_t fan) {
 	FAN_TIM.Instance->CCR1 = constrain(fan, 0, max_fan_speed);
 }

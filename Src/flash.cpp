@@ -1,11 +1,14 @@
 /*
  * flash.cpp
  *
- * Sep 03 2023
- *     Added W25Q::fileName() method
- * Mar 30 2024
- *     Changed W25Q::init(). In case if no cfg file read, do not unmount the FLASH
- *     Added comments to the W25Q::formatFlashDrive()
+ *	2023 SEP 03
+ *		Added W25Q::fileName() method
+ *	2024 MAR 30
+ *		Changed W25Q::init(). In case if no cfg file read, do not unmount the FLASH
+ *		Added comments to the W25Q::formatFlashDrive()
+ *	2025 NOV 04, 1.1.12
+ *		Fixing issue of deactivating TIP
+ *  	Changed W25Q::saveTipData() to reopen TIPS calibration file, tipcal.dat, for write access
  */
 #include <string.h>
 #include "flash.h"
@@ -184,7 +187,8 @@ TIP_IO_STATUS W25Q::loadTipData(TIP* tip, uint8_t tip_index, bool keep) {
 	if (act_f != W25Q_TIPS_CURRENT) {						// Close other configuration file
 		close();
 		if (FR_OK == f_open(&cfg_f, fn_tip_calib, FA_READ)) {
-			act_f = W25Q_TIPS_CURRENT;
+			act_f	= W25Q_TIPS_CURRENT;
+			rw		= false;
 		}
 	}
 	if (act_f != W25Q_TIPS_CURRENT)
@@ -212,7 +216,7 @@ int16_t W25Q::saveTipData(TIP* tip, bool keep) {
 	if (!mount())
 		return -1;
 	bool new_entry = false;
-	if (act_f == W25Q_TIPS_CURRENT) {						// The tip configuration file is already opened
+	if (act_f == W25Q_TIPS_CURRENT && rw) {					// The tip configuration file is already opened and write enabled
 		f_lseek(&cfg_f, 0);									// Rewind to the top of the file
 	} else {
 		W25Q::close();
@@ -225,7 +229,8 @@ int16_t W25Q::saveTipData(TIP* tip, bool keep) {
 			}
 
 		}
-		act_f = W25Q_TIPS_CURRENT;
+		act_f 	= W25Q_TIPS_CURRENT;
+		rw		= true;										// File open for read/write
 	}
 	if (!new_entry) {										// Try to locate our tip in the file
 		UINT	br = 0;										// Bytes actually read from the file

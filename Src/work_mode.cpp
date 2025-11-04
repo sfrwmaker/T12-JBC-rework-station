@@ -11,19 +11,21 @@
  *      - the JBC iron is turned-off by timeout (see MWORK::jbcPhaseEnd())
  *      - the Hakko T12 iron is turned-off (see MWORK::t12PressShort() and MWORK::t12PhaseEnd())
  *
- * 2023 MAR 01, v1.01
+ *  2023 MAR 01, v1.01
  *     Heavily revisited the code, many changes:
  *     MWORK::init(), MWORK::loop(), MWORK::manageHardwareSwitches(), MWORK::manageEncoders()
- * 2023 SEP 08, v1.03
+ *  2023 SEP 08, v1.03
  * 	   MWORK::init() added call pD->drawAmbient() to show ambient temperature and horizontal line when mode activated for sure
- * 2024 JUB 28, v1.04
+ *  2024 JUB 28, v1.04
  *     MWORK::jbcPressShort() when the jbc is powered off and the hot gun is running, turn to the T12_GUN display mode
- * 2024 OCT 12, v.1.07
+ *  2024 OCT 12, v.1.07
  * 	   Changed MWORK::manageHardwareSwitches(), MWORK::manageEncoders() to implement Hot Gun standby mode
- * 2024 NOV 06, v.1.08
+ *  2024 NOV 06, v.1.08
  * 		Modified MWORK::manageEncoders() to change Fan speed by 1%
- * 2025 SEP 17, v.1.10
+ *  2025 SEP 17, v.1.10
  * 		Modified the MWORK::loop() and MWORK::manageEncoders() to save the preset temperature after save_preset_to timeout the encoder was rotated
+ *  2025 NOV 03, v.1.12
+ *  	Modified MWORK::manageEncoders() to correctly manage fan speed in percents
  */
 
 #include "work_mode.h"
@@ -556,15 +558,14 @@ bool MWORK::manageEncoders(void) {
 			}
 			// the HOT AIR GUN button was pressed, toggle temp/fan
 			if (edit_temp) {								// Switch to edit fan speed
-				uint16_t fan 	= pHG->presetFan();
-				uint16_t min	= pHG->minFanSpeed();
-				uint16_t max 	= pHG->maxFanSpeed();
-				uint8_t	 step	= pHG->fanStepPcnt();
-				pCore->l_enc.reset(fan, min, max, step, step<<2, false);
+				uint16_t fan 	= pCFG->gunFanPreset();
+				uint16_t min	= pCFG->minFanSpeed();
+				uint16_t max 	= pCFG->maxFanSpeed();
+				pCore->l_enc.reset(fan, min, max, 1, 5, false);
 				edit_temp 		= false;
 				temp_set_h		= fan;
 				return_to_temp	= HAL_GetTick() + edit_fan_timeout;
-				fanSpeed(true);
+				fanSpeed(true);								// Draw fan speed value
 				update_screen 	= 0;
 			} else {
 				return_to_temp	= HAL_GetTick();			// Force to return to edit temperature
@@ -585,20 +586,22 @@ bool MWORK::manageEncoders(void) {
     	} else {											// Changed preset temperature or fan speed
 			uint16_t g_temp = temp_set_h;					// In first loop the preset temperature will be setup for sure
 			uint16_t t	= pHG->presetTemp();				// Internal units
-			uint16_t f	= pHG->presetFan();
+			uint16_t f	= pHG->presetFanPcnt();				// Fan speed, %
 			t = pCFG->tempToHuman(t, ambient, d_gun);
 			if (edit_temp) {
-				t = temp_set_h;								// New temperature value
-				presetTemp(l_dev, temp_set_h);
+				t = temp_set_h;								// New temperature value, read from encoder
+				presetTemp(l_dev, temp_set_h);				// Draw new temperature value
 				uint16_t g_temp_set	= pCFG->humanToTemp(g_temp, ambient, d_gun);
 				pHG->setTemp(g_temp_set);
+				pCFG->saveGunPreset(t, f);
 			} else {
-				f = temp_set_h;								// New fan value
+				f = temp_set_h;								// New fan value, read from encoder, %
+				pCFG->saveGunPreset(t, f);
+				f = pCFG->gunFanPreset();					// Fan speed, raw value
 				pHG->setFan(f);
-				fanSpeed(true);
+				fanSpeed(true);								// Draw new fan speed
 				return_to_temp	= HAL_GetTick() + edit_fan_timeout;
 			}
-			pCFG->saveGunPreset(t, f);
 			enc_changed_ms = HAL_GetTick();					// The preset temperature just has been changed
     	}
     }
