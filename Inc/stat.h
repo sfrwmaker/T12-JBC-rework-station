@@ -2,9 +2,6 @@
  * stat.h
  *
  *  Math statistic class
- *
- *  2025 SEP 19
- *  	Added state parameter to the SWITCH::init() method to initialize instance correctly
  */
 
 #ifndef STAT_H_
@@ -13,9 +10,9 @@
 #include "main.h"
 
 // Exponential average
-class EMP_AVERAGE {
+class EXPA {
 	public:
-		EMP_AVERAGE(uint8_t h_length = 8)				{ emp_k = h_length; emp_data = 0; 	}
+		EXPA(uint8_t h_length = 8)						{ emp_k = h_length; emp_data = 0; 	}
 		void			length(uint8_t h_length)		{ emp_k = h_length; emp_data = 0; 	}
 		void			reset(int32_t value = 0)		{ emp_data = value * emp_k; 		}
 		int32_t			average(int32_t value);
@@ -44,18 +41,28 @@ class HIST {
     	volatile uint8_t 	index;						// The current element position, use ring buffer
 };
 
-class SWITCH : public EMP_AVERAGE {
+class SWITCH : public EXPA {
     public:
-        SWITCH(uint8_t len=8) : EMP_AVERAGE(len)		{ }
-        void        	init(uint8_t h_len, uint16_t on = 500, uint16_t off = 500, bool state = false);
+        SWITCH(uint8_t len=8) : EXPA(len)				{ }
+        void        	init(uint8_t h_len, uint16_t on = 500, uint16_t off = 500);
         bool        	status(void)							{ return mode; }
         bool			changed(void);
         void			update(uint16_t value);
     private:
         bool			sw_changed	= false;			// The status has changed flag
-        bool        	mode		= false;			// The switch mode on (true)/off
-        int16_t    		on_val  	= 400;				// Turn on  value
-        int16_t    		off_val 	= 500;				// Turn off value
+        bool        	mode	= false;               	// The switch mode on (true)/off
+        int16_t    		on_val  = 400;                 	// Turn on  value
+        int16_t    		off_val = 500;                 	// Turn off value
+};
+
+// Linear approximation by Ordinary Least Squares method
+class OLS {
+	public:
+		bool 			loadOLS(uint16_t X[], uint16_t Y[], bool filter[], uint16_t size);
+		void			approximate(uint16_t X[], uint16_t Y[], uint16_t size);
+	private:
+		double a		= 0.0;							// The linear coefficients
+		double b		= 0.0;
 };
 
 #endif

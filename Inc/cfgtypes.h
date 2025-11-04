@@ -12,6 +12,9 @@
  *  	Added gun_low_temp and gun_off_timeout variables into struct s_config
  *  2024 NOV 05, v.1.08
  *  	Added new boolean parameter into bitmap: CFG_SAFE_MODE
+ *  2025 NOV 03, v.1.12
+ *  	Added CFG_FAN_24 parameter into CFG_BIT_MASK enum to support Hot Air Gun with 12v fan
+ *  	Changed the gun_fan_speed field in the RECORD structure from 16 bits to 8 bits long
  */
 
 #ifndef CFGTYPES_H_
@@ -34,7 +37,7 @@
  */
 typedef enum { CFG_CELSIUS = 1, CFG_BUZZER = 2, CFG_SWITCH = 4, CFG_AU_START = 8,
 				CFG_U_CLOCKWISE = 16, CFG_L_CLOCKWISE = 32, CFG_FAST_COOLING = 64, CFG_BIG_STEP = 128,
-				CFG_DSPL_TYPE = 256, CFG_SAFE_MODE = 512 } CFG_BIT_MASK;
+				CFG_DSPL_TYPE = 256, CFG_SAFE_MODE = 512, CFG_FAN_24 = 1024 } CFG_BIT_MASK;
 
 typedef enum { d_t12 = 0, d_jbc = 1, d_gun = 2, d_unknown } tDevice;
 
@@ -58,13 +61,13 @@ struct s_config {
 	uint16_t	t12_temp;							// The T12 IRON preset temperature in degrees (Celsius or Fahrenheit)
 	uint16_t	jbc_temp;							// The T12 IRON preset temperature in degrees (Celsius or Fahrenheit)
 	uint16_t	gun_temp;							// The Hot Air Gun preset temperature in degrees (Celsius or Fahrenheit)
-	uint16_t	gun_fan_speed;						// The Hot Air Gun fan speed
 	uint16_t	t12_tip;							// Current T12 tip index or EXT 'tip' index
 	uint16_t	jbc_tip;							// Current JBC tip index
 	uint16_t	t12_low_temp;						// The T12 IRON low power temperature (C) or 0 if the tilt sensor is disabled
 	uint8_t		t12_low_to;							// The T12 IRON low power timeout (5 seconds intervals)
 	uint8_t		boost;								// Two 4-bits parameters: The boost increment temperature and boost time. See description above
 	uint8_t		t12_off_timeout;					// The T12 IRON Automatic switch-off timeout in minutes [0 - 30]
+	uint8_t		gun_fan_speed;						// The Hot Air Gun fan speed, percentage
 	uint16_t	jbc_low_temp;						// The JBC IRON low power temperature (C) or 0 if disabled
 	uint8_t		jbc_off_timeout;					// The JBC IRON Automatic switch-off timeout in minutes [0 - 30]
 	uint16_t	gun_low_temp;						// The Hot Gun low power temperature (C) or 0 if disabled

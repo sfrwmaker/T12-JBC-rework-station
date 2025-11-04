@@ -34,7 +34,12 @@
  *  2024 NOV 16
  *  	Added extra parameter to TIP_CFG::applyTipCalibtarion() to correctly setup tip mask
  *  2024 NOV 28
- *  	made public TIP_CFG::isValidTipConfig();
+ *  	Made public TIP_CFG::isValidTipConfig();
+ *  2025 NOV 03, v.1.12
+ *  	Added support for Hot Air Gun with 12v fan
+ *  	Added CFG_CORE::minFanSpeed(), CFG_CORE::maxFanSpeed(), CFG_CORE::isFan24v(), CFG_CORE::gunFanPresetPcnt()
+ *  	Modified CFG_CORE::gunFanPreset()
+ *  	Added new parameter into CFG_CORE::setupGUN()
  */
 
 #ifndef CONFIG_H_
@@ -69,13 +74,15 @@ class CFG_CORE: public TIPS {
 		bool		isFastGunCooling(void)				{ return a_cfg.bit_mask & CFG_FAST_COOLING;	}
 		bool		isIPS(void)							{ return a_cfg.bit_mask & CFG_DSPL_TYPE;	}
 		bool		isSafeIronMode(void)				{ return a_cfg.bit_mask & CFG_SAFE_MODE;	}
-		uint16_t	gunFanPreset(void)					{ return a_cfg.gun_fan_speed;				}
+		bool		isFan24v(void)						{ return a_cfg.bit_mask & CFG_FAN_24;		}
 		uint8_t		getLowTO(void)						{ return a_cfg.t12_low_to; 					}	// 5-seconds intervals
 		uint8_t		getDsplBrightness(void)				{ return a_cfg.dspl_bright;					}	// 1-100%
 		uint8_t		getDsplRotation(void)				{ return a_cfg.dspl_rotation;				}
+		uint8_t		gunFanPresetPcnt(void)				{ return a_cfg.gun_fan_speed;				}
 		void		setDsplRotation(uint8_t rotation)	{ a_cfg.dspl_rotation = rotation;			}
 		void		setLanguage(const char *lang)		{ strncpy(a_cfg.language, lang, LANG_LENGTH);}
 		bool		isExtraTip(void)					{ return TIPS::isExtraTip(a_cfg.t12_tip);	}
+		uint16_t	gunFanPreset(void);
 		uint8_t		getOffTimeout(tDevice dev);
 		uint16_t	getLowTemp(tDevice dev);
 		uint16_t	tempPresetHuman(tDevice dev);		// Human readable units
@@ -83,9 +90,9 @@ class CFG_CORE: public TIPS {
 		void		setup(bool buzzer, bool celsius, bool big_temp_step, bool i_enc, bool g_enc, bool ips_display, bool safe_iron_mode, uint8_t bright);
 		void		setupT12(bool reed, bool auto_start, uint8_t off_timeout, uint16_t low_temp, uint8_t low_to, uint8_t delta_temp, uint16_t duration);
 		void		setupJBC(uint8_t off_timeout, uint16_t stby_temp);
-		void		setupGUN(bool fast_gun_chill, uint8_t stby_timeout, uint16_t stby_temp);
+		void		setupGUN(bool fast_gun_chill, bool is_fan_24v, uint8_t stby_timeout, uint16_t stby_temp);
 		void 		savePresetTempHuman(uint16_t temp_set, tDevice dev_type);
-		void		saveGunPreset(uint16_t temp, uint16_t fan = 0);
+		void		saveGunPreset(uint16_t temp, uint8_t fan = 101);
 		uint8_t		boostTemp(void);
 		uint16_t	boostDuration(void);
 		void		saveBoost(uint8_t temp, uint16_t duration);
@@ -95,6 +102,8 @@ class CFG_CORE: public TIPS {
 		uint16_t	tempMin(tDevice dev, bool force_celsius = false);
 		uint16_t	tempMax(tDevice dev, bool force_celsius = false);
 		uint16_t 	tempMax(tDevice dev, bool celsius, bool safe_iron_mode);
+		uint16_t	minFanSpeed(void);
+		uint16_t	maxFanSpeed(void);
 	protected:
 		void		setDefaults(void);
 		void		setPIDdefaults(void);
@@ -104,6 +113,8 @@ class CFG_CORE: public TIPS {
 		RECORD		a_cfg;								// active configuration
 	private:
 		RECORD		s_cfg;								// spare configuration, used when save the configuration to the EEPROM
+		const uint16_t	fan_speed_12v[2]	= { 100, 1000 };
+		const uint16_t	fan_speed_24v[2]	= { 700, 1999 };
 };
 
 typedef struct s_TIP_RECORD	TIP_RECORD;

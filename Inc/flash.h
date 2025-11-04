@@ -1,10 +1,12 @@
 /*
  * flash.h
  *
- * Sep 03 2023
+ *  2023 SEP 03
  *     Added W25Q::fileName() method
- * Sep 04 2023
+ *  2023 SEP 04
  * 	   Added keep_mounted flag
+ *	2025 NOV 04, v.1.12
+ *		Added W25Q::rw flag indicating the active file write enabled
  *
  */
 
@@ -45,6 +47,7 @@ class W25Q {
 		uint8_t			PID_checkSum(PID_PARAMS* pid_params, bool write);
 		bool			backup(ACT_FILE type);
 		bool			keep_mounted	= false;
+		bool			rw				= false;				// Open file for read/write
 		FIL				cfg_f;
 		ACT_FILE		act_f = W25Q_NOT_MOUNTED;				// Open file
 		const uint16_t	blk_size		= 4096;

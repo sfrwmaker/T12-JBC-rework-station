@@ -88,6 +88,7 @@ class MCALIB : public MODE {
 		uint8_t		closestIndex(uint16_t temp);
 		void 		updateReference(uint8_t indx);
 		void 		buildFinishCalibration(void);
+		OLS			ols;									// Use Linear approximation by Ordinary Least Squares method
 		uint8_t		ref_temp_index	= 0;					// Which temperature reference to change: [0-MCALIB_POINTS]
 		uint16_t	calib_temp[2][MCALIB_POINTS];			// The calibration data: real temp. [0] and temp. in internal units [1]
 		uint16_t	tip_temp_max	= 0;					// the maximum possible tip temperature in the internal units
@@ -115,6 +116,7 @@ class MCALIB_MANUAL : public MODE {
 	private:
 		void 		buildCalibration(uint16_t tip[], uint8_t ref_point);
 		void		restorePIDconfig(CFG *pCFG, UNIT* pUnit);
+		OLS			ols;									// Use Linear approximation by Ordinary Least Squares method
 		uint8_t		ref_temp_index	= 1;					// Which temperature reference to change: [0-3]
 		uint16_t	calib_temp[4];							// The calibration temp. in internal units in reference points
 		bool		calib_flag[4];							// Flag indicating the reference temperature has been calibrated

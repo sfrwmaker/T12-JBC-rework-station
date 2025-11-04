@@ -15,6 +15,8 @@
  * 		Added "standby" message
  * 	2024 NOV 05, v.1.08
  * 		Added "max temperature" preference menu item
+ * 	2025 NOV 03, v.1.12
+ * 		Added new item value in Hot Air Gun menu for Hot Air Gun with 12v fan.
  */
 
 #ifndef MSG_NLS_H_
@@ -23,8 +25,8 @@
 #include <string>
 
 typedef enum e_msg { MSG_MENU_MAIN, MSG_MENU_SETUP = 10, MSG_MENU_T12 = 10+14, MSG_MENU_JBC = 10+14+11, MSG_MENU_GUN = 10+14+11+6,
-					 MSG_MENU_CALIB = 10+14+11+6+7, MSG_PID_MENU = 10+14+11+6+7+5, MSG_FLASH_MENU = 10+14+11+6+7+5+5,
-					MSG_ON = 10+14+11+6+7+5+5+5, MSG_OFF, MSG_FAN, MSG_PWR,
+					 MSG_MENU_CALIB = 10+14+11+6+8, MSG_PID_MENU = 10+14+11+6+8+5, MSG_FLASH_MENU = 10+14+11+6+8+5+5,
+					MSG_ON = 10+14+11+6+8+5+5+5, MSG_OFF, MSG_FAN, MSG_PWR,
 					MSG_REF_POINT, MSG_REED, MSG_TILT, MSG_DEG, MSG_MINUTES, MSG_SECONDS,
 					MSG_CW, MSG_CCW, MSG_SET, MSG_ERROR, MSG_TUNE_PID, MSG_SELECT_TIP,
 					MSG_EEPROM_READ, MSG_EEPROM_WRITE, MSG_EEPROM_DIRECTORY, MSG_FORMAT_EEPROM, MSG_FORMAT_FAILED,
@@ -103,6 +105,7 @@ class NLS_MSG {
 				{"fast chill",		std::string()},
 				{"standby time",	std::string()},
 				{"standby temp.",	std::string()},
+				{"fan voltage",		std::string()},
 				{"save",			std::string()},
 				{"calibrate gun",	std::string()},
 				{"back to menu",	std::string()},

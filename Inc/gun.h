@@ -30,6 +30,10 @@
  *  	Added HOTGUN::fan_curr_avg_len constant to setup the average length of fan current SWITCH
  *  	Changed HOTGUN::sw_avg_len from 13 to 3 to increase speed of switching the Hot Air Gun on/off
  *  	Added HOTGUN::appplied_power variable to save the applied power value. Used in appliedPower() method
+ *  2025 NOV 03, v.1.12
+ *  	Changed HOTGUN::min_fan_speed and HOTGUN::max_fan_speed from constants to variables
+ *  	Added HOTGUN::setFanLimits() to setup the fan speed limits
+ *  	Removed HOTGUN::fanStepPcnt(void), HOTGUN::minFanSpeed() and HOTGUN::maxFanSpeed()
  */
 
 #ifndef GUN_H_
@@ -54,14 +58,12 @@ class HOTGUN : public UNIT {
         virtual uint16_t	getMaxFixedPower(void)			{ return max_fix_power; 						}
         virtual bool		isCold(void)					{ return mode == POWER_OFF;						}
         bool				isFanWorking(void)				{ return (fanSpeed() >= min_fan_speed);			}
-        uint16_t			minFanSpeed(void)				{ return min_fan_speed;							}
-        uint16_t			maxFanSpeed(void)				{ return max_fan_speed;							}
-        uint8_t				fanStepPcnt(void)				{ return (max_fan_speed + 50) / 100;			}
         virtual uint16_t	pwrDispersion(void)				{ return d_power.read(); 						}
         virtual uint16_t 	tmpDispersion(void)				{ return d_temp.read(); 						}
 		virtual void		setTemp(uint16_t temp)			{ temp_set	= constrain(temp, 0, int_temp_max);	}
 		void				setFan(uint16_t fan)			{ fan_speed = constrain(fan, min_fan_speed, max_fan_speed);	}
 		void				setFastGunCooling(bool on)		{ fast_cooling = on;							}
+		void				setFanLimits(uint16_t min_speed, uint16_t max_speed);
 		void				fanFixed(uint16_t fan);
 		void				fanControl(bool on);
 		void				updateTemp(uint16_t value);
@@ -90,20 +92,20 @@ class HOTGUN : public UNIT {
 		uint32_t	fan_off_time		= 0;				// Time when the fan should be powered off in cooling mode (ms)
 		uint16_t	min_cool_temp		= 0;				// The minimum registered temperature in cooling mode
 		uint32_t	min_cool_tm			= 0;				// The time when the minimum registered temperature in cooling mode reached
-		EMP_AVERAGE	h_power;								// Exponential average of applied power
-		EMP_AVERAGE	c_temp;									// Exponential average of Hot Air Gun current temperature. Updated in HAL_ADC_ConvCpltCallback() see core.cpp
-		EMP_AVERAGE	h_temp;									// Exponential average of Hot Air Gun temperature. Updated in HAL_ADC_ConvCpltCallback() see core.cpp
-		EMP_AVERAGE	d_power;								// Exponential average of power dispersion
-		EMP_AVERAGE d_temp;									// Exponential temperature math dispersion
-		EMP_AVERAGE	zero_temp;								// Exponential average of minimum (zero) temperature
+		EXPA		h_power;								// Exponential average of applied power
+		EXPA		c_temp;									// Exponential average of Hot Air Gun current temperature. Updated in HAL_ADC_ConvCpltCallback() see core.cpp
+		EXPA		h_temp;									// Exponential average of Hot Air Gun temperature. Updated in HAL_ADC_ConvCpltCallback() see core.cpp
+		EXPA		d_power;								// Exponential average of power dispersion
+		EXPA 		d_temp;									// Exponential temperature math dispersion
+		EXPA		zero_temp;								// Exponential average of minimum (zero) temperature
+		uint16_t	min_fan_speed		= 100;				// The minimum PWM value for fan, updated in setFanLimits()
+		uint16_t	max_fan_speed		= 1000;				// The maximum PWM value for fan
 		volatile    uint16_t	avg_sync_temp	= 0;		// Average temperature synchronized with TIM1 (used to calculate required power, see power() method)
 		volatile 	uint8_t		relay_ready_cnt	= 0;		// The relay ready counter, see HOTHUN::power()
 		volatile	uint16_t	applied_power	= 0;		// Calculated value of power to be applied (see power())
 		bool		relay_activated				= false;	// The relay activated flag
         const       uint8_t     max_fix_power 	= 70;
 		const		uint8_t		max_power		= 120;
-		const		uint16_t	min_fan_speed	= 700;
-		const		uint16_t	max_fan_speed	= 1999;
 		const		uint16_t	max_cool_fan	= 1600;
         const       uint16_t    temp_gun_off   	= 125;		// (50) The temperature of the cold Hot Air Gun
         const		uint32_t	fan_off_timeout	= 6*60*1000;// The timeout to turn the fan off in cooling mode

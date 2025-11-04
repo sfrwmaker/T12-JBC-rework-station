@@ -14,6 +14,8 @@
  *  	Added 'Display type' boolean parameter into MSETUP
  *  2024 NOV 05
  *  	Added 'safe_iron_mode' boolean parameter into MSETUP
+ *  2025 NOV 03, v.1.12
+ *  	Added MENU_GUN::MG_FAN_VOLTAGE menu item to support Hot Air Gun with 12v fan
  */
 
 #ifndef MENU_H_
@@ -138,15 +140,16 @@ class MENU_GUN : public MODE {
 	private:
 		MODE*		mode_calibrate;
 		bool		fast_gun_chill	= false;				// Start chilling the Hot Gun at a maximum fan speed
+		bool		is_fan_24v		= false;
 		uint8_t		stby_timeout	= 0;					// Automatic switch off timeout in minutes or 0 to disable
 		uint16_t	stby_temp		= 0;					// The low power temperature (Celsius) 0 - switch off the JBC IRON immediately
 		int8_t		set_param		= -1;					// The index of the modifying parameter
 		uint8_t		mode_menu_item	= 0;
 		// When new menu item added, in_place_start, in_place_end, tip_calib_menu constants should be adjusted
 		const uint8_t	in_place_start	= MG_STBY_TO;		// See the menu names. Index of the first parameter that can be changed inside menu (see nls.h)
-		const uint8_t	in_place_end	= MG_STANDBY_TEMP;	// See the menu names. Index of the last parameter that can be changed inside menu
+		const uint8_t	in_place_end	= MG_FAN_VOLTAGE;	// See the menu names. Index of the last parameter that can be changed inside menu
 		const uint16_t	min_standby_C	= 120;				// Minimum standby temperature, Celsius
-		enum { MG_FAST_CHILL = 0, MG_STBY_TO, MG_STANDBY_TEMP, MG_SAVE, MG_CALIBRATE, MG_BACK };
+		enum { MG_FAST_CHILL = 0, MG_STBY_TO, MG_STANDBY_TEMP, MG_FAN_VOLTAGE, MG_SAVE, MG_CALIBRATE, MG_BACK };
 };
 
 //---------------------- PID setup menu ------------------------------------------

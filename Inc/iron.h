@@ -57,11 +57,11 @@ class IRON : public UNIT {
 		volatile	uint16_t	temp_curr 	= 0;			// The actual IRON temperature
 		volatile 	uint8_t		check_period= 0;			// The period to check the current through the IRON
 		volatile	uint8_t		check_time	= 0;			// The time when to check the current through the IRON
-		EMP_AVERAGE h_power;								// Exponential average of applied power
-		EMP_AVERAGE	h_temp;									// Exponential average of temperature
-		EMP_AVERAGE d_power;								// Exponential average of power math dispersion
-		EMP_AVERAGE d_temp;									// Exponential temperature math dispersion
-		EMP_AVERAGE t_iron_short;							// Exponential average of the IRON temperature (short period)
+		EXPA		h_power;								// Exponential average of applied power
+		EXPA		h_temp;									// Exponential average of temperature
+		EXPA		d_power;								// Exponential average of power math dispersion
+		EXPA		d_temp;									// Exponential temperature math dispersion
+		EXPA		t_iron_short;							// Exponential average of the IRON temperature (short period)
 		bool		t_reset					= false;		// The temperature value was reset
 		uint16_t	max_power      			= 0;			// Maximum power of the T12 or JBC IRON, initialized in init() method
 		const uint16_t	max_fix_power  		= 1000;			// Maximum power in fixed power mode
