@@ -1,7 +1,7 @@
 {
 	"standalone": {
-		"OFF":							"откл",
 		"ON":							"вкл",
+		"OFF":							"откл",
 		"Fan:":							"Фен:",
 		"Pwr:":							"мощн:",
 		"Ref. #":						"Тчк №",
@@ -17,7 +17,7 @@
 		"Tune PID":						"настройка ПИД",
 		"Select tip":					"Выбрать жало",
 		"FLASH read error":				"Ошибка чтения памяти",
-		"FLASH write erro":				"Ошибка записи в память",
+		"FLASH write error":			"Ошибка записи в память",
 		"No directory":					"Нет каталога",
 		"format FLASH?":				"Форматировать?",
 		"Failed to format FLASH":		"Ошибка форматирования",
@@ -34,7 +34,10 @@
 		"NO config file":				"Нет файла конф.",
 		"No lang. specified":			"Язык не задан",
 		"No memory":					"Недостаточно памяти",
-		"Inconsistent lang":			"Неполный язык"
+		"Inconsistent lang":			"Неполный язык",
+		"IPS":							"IPS",
+		"TFT":							"TFT",
+		"standby":						"ожидание"
 	},
 	"Menu": {
 		"Main Menu": {
@@ -55,7 +58,6 @@
 			"buzzer":					"зуммер",
 			"upper encoder":			"верхний энкодер",
 			"lower encoder":			"нижний энкодер",
-			"fast gun chill":			"быстр. охл. фена",
 			"temp. step":				"шаг температуры",
 			"brightness":				"яркость",
 			"rotation":					"поворот",
@@ -80,12 +82,23 @@
 			"back to menu":				"назад в меню"
 		},
 		"JBC iron setup": {
+			"JBC iron setup":			"Паяльник JBC",
 			"auto off":					"выключение",
 			"standby temp.":			"темп. ожидания",
 			"save":						"сохранить",
 			"calibrate tip":			"калибровка жала",
 			"back to menu":				"назад в меню"
-		}
+		},
+		"HOT GUN setup": {
+			"HOT GUN setup":			"Термофен",
+			"fast chill":				"быстр. охлаждение",
+			"standby time":				"время ожидания",
+			"standby temp.":			"темп. ожидания",
+			"fan voltage":				"напряжение фена",
+			"save":						"сохранить",
+			"calibrate gun":			"калибровка фена",
+			"back to menu":				"назад в меню"
+		},
 		"Calibrate": {
 			"Calibrate":				"Калибровка",
 			"automatic":				"автоматически",

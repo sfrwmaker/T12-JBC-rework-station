@@ -1,13 +1,18 @@
 {
 	"standalone": {
+		"ON":							"ON",
+		"OFF":							"OFF",
 		"Fan:":							"VENT:",
 		"Pwr:":							"POT:",
+		"Ref.#":						"Ref.#",
+		"REED":							"REED",
 		"TILT":							"INCL.",
 		"deg.":							"grau",
 		"min":							"min.",
 		"sec":							"seg.",
 		"cw":							"horario",
-		"ccw":							"ant.horario",,
+		"ccw":							"ant.horario",
+		"Set:":							"Set:",
 		"ERROR":						"ERRO",
 		"Tune PID":						"ajuste PID",
 		"Select tip":					"Selecionar ponta",
@@ -29,7 +34,10 @@
 		"NO config file":				"Sem arquivo de configuração",
 		"No lang. specified":			"Nenhum idioma especificado",
 		"No memory":					"Sem memória",
-		"Inconsistent lang":			"Idioma inconsistente"
+		"Inconsistent lang":			"Idioma inconsistente",
+		"IPS":							"IPS",
+		"TFT":							"TFT",
+		"standby":						"espera"
 	},
 	"Menu": {
 		"Main Menu": {
@@ -50,7 +58,6 @@
 			"buzzer":					"Buzzer",
 			"upper encoder":			"upper encoder",
 			"lower encoder":			"lower encoder",
-			"fast gun chill":			"frio rápido GUN",
 			"temp. step":				"Incremento Temp",
 			"brightness":				"Brilho",
 			"rotation":					"rotação",
@@ -75,12 +82,23 @@
 			"back to menu":				"Voltar ao Menu"
 		},
 		"JBC iron setup": {
+			"JBC iron setup":			"JBC iron setup",
 			"auto off":					"Auto Desliga",
 			"standby temp.":			"Temp. de Esper",
 			"save":						"Salvar",
 			"calibrate tip":			"Caibrar Ponta",
 			"back to menu":				"Voltar ao Menu"
-		}
+		},
+		"HOT GUN setup": {
+			"HOT GUN setup":			"HOT GUN setup",
+			"fast chill":				"frio rápido GUN",
+			"standby time":				"Tempo de Espera",
+			"standby temp.":			"Temp. de Esper",
+			"fan voltage":				"fan voltage",
+			"save":						"Salvar",
+			"calibrate gun":			"Caibrar GUN",
+			"back to menu":				"Voltar ao Menu"
+		},
 		"Calibrate": {
 			"Calibrate":				"Calibrar",
 			"automatic":				"Automatico",
@@ -96,10 +114,10 @@
 			"back to menu":				"Voltar ao Menu"
 		},
 		"Manage config": {
-			"Manage config":			"Manage config",
-			"Load lang data":			"Load lang data",
-			"Load config":				"Load config",
-			"Save config":				"Save config",
+			"Manage config":			"Gerenciar config.",
+			"Load lang data":			"Carregar idioma",
+			"Load config":				"Carregar configuração",
+			"Save config":				"salvar configuração",
 			"quit":						"Sair"
 		}
 	}

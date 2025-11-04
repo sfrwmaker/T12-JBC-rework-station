@@ -2,7 +2,7 @@
 	"standalone": {
 		"OFF":							"",
 		"ON":							"",
-		"Fan:":							":",
+		"Fan:":							"",
 		"Pwr:":							"",
 		"Ref. #":						"",
 		"REED":							"",
@@ -34,7 +34,10 @@
 		"NO config file":				"",
 		"No lang. specified":			"",
 		"No memory":					"",
-		"Inconsistent lang":			""
+		"Inconsistent lang":			"",
+		"IPS":							"",
+		"TFT":							"",
+		"standby":						""
 	},
 	"Menu": {
 		"Main Menu": {
@@ -44,7 +47,7 @@
 			"activate tips":			"",
 			"T12 setup":				"",
 			"JBC setup":				"",
-			"calibrate GUN":			"",
+			"HOT GUN setup":			"",
 			"reset config":				"",
 			"about":					"",
 			"quit":						""
@@ -79,12 +82,23 @@
 			"back to menu":				""
 		},
 		"JBC iron setup": {
+			"JBC iron setup":			"",
 			"auto off":					"",
 			"standby temp.":			"",
 			"save":						"",
 			"calibrate tip":			"",
 			"back to menu":				""
-		}
+		},
+		"HOT GUN setup": {
+			"HOT GUN setup":			"",
+			"fast chill":				"",
+			"standby time":				"",
+			"standby temp.":			"",
+			"fan voltage":				"",
+			"save":						"",
+			"calibrate gun":			"",
+			"back to menu":				""
+		},
 		"Calibrate": {
 			"Calibrate":				"",
 			"automatic":				"",

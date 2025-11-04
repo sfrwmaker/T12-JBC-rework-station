@@ -1,11 +1,11 @@
 {
 	"standalone": {
-		"OFF":						"Wył",
 		"ON": 						"Wł",
+		"OFF":						"Wył",
 		"Fan:": 					"Went.:",
 		"Pwr:": 					"Pwr:",
 		"Ref. #": 					"Ref. #",
-		"REED": 					"REED",
+		"REED": 					"kontaktron",
 		"TILT": 					"Wibr.",
 		"deg.": 					"deg.",
 		"min": 						"min",
@@ -17,7 +17,7 @@
 		"Tune PID": 				"Ustawienia PID",
 		"Select tip": 				"Wybór grota",
 		"FLASH read error": 		"Błąd odczytu pamięci",
-		"FLASH write erro": 		"Błąd zapisu pamięci",
+		"FLASH write error": 		"Błąd zapisu pamięci",
 		"No directory": 			"Brak katalogu",
 		"format FLASH?": 			"Formatować?",
 		"Failed to format FLASH": 	"Błąd formatowania",
@@ -34,7 +34,10 @@
 		"NO config file": 			"Brak pliku konfiguracyjnego",
 		"No lang. specified": 		"Brak określonego języka",
 		"No memory": 				"Brak pamięci",
-		"Inconsistent lang": 		"Niezgodny język"
+		"Inconsistent lang": 		"Niezgodny język",
+		"IPS":						"IPS",
+		"TFT":						"TFT",
+		"standby":					"stan gotowości"
 	},
 	"Menu": {
 		"Main Menu": {
@@ -55,14 +58,13 @@
 			"buzzer": 				"Buzzer",
 			"upper encoder": 		"górny encoder",
 			"lower encoder": 		"dolny encoder",
-			"fast gun chill":		"szybkie ochłodzenie hot-air",
 			"temp. step": 			"Skok temperatury",
 			"brightness": 			"Jasność",
 			"rotation": 			"obrót",
 			"language": 			"Język",
 			"display type":			"typ wyświetlacza",
 			"max temperature":		"maks. temperatura",
-			"tune PID": 			"tune PID",
+			"tune PID": 			"dostroić PID",
 			"save": 				"Zapisać",
 			"cancel": 				"Anuluj"
 		},
@@ -80,26 +82,29 @@
 			"back to menu": 		"Powrót do menu"
 		},
 		"JBC iron setup": {
+			"JBC iron setup":		"Ustawienia grota JBC"
 			"auto off":				"Auto wył.",
 			"standby temp.": 		"Standby temp.",
 			"save": 				"Zapisz",
 			"calibrate tip": 		"kalibracja grota",
 			"back to menu": 		"Powrót do menu"
-		}
+		},
+		"HOT GUN setup": {
+			"HOT GUN setup":		"Hot Air",
+			"fast chill":			"szybkie ochłodzenie",
+			"standby time":			"Czas oczekiwania",
+			"standby temp.":		"Standby temp.",
+			"fan voltage":			"fan voltage",
+			"save":					"Zapisz",
+			"calibrate gun":		"kalibracja",
+			"back to menu":			"Powrót do menu"
+		},
 		"Calibrate": {
 			"Calibrate": 			"Kalibracja",
 			"automatic": 			"Automatyczna",
 			"manual": 				"Ręczna",
 			"clear": 				"Wyczyścić",
 			"quit": 				"Wyjście"
-		},
-		"Hot Air Gun": {
-			"Hot Air Gun": 			"Hot Air",
-			"calibrate": 			"Kalibracja",
-			"tune gun": 			"Ustawienia Hot Air",
-			"tune gun PID": 		"Ustawienia PID",
-			"clear": 				"Wyczyść",
-			"exit": 				"Wyjście"
 		},
 		"Tune PID": {
 			"Tune PID": 			"Regulacja PID",
@@ -109,11 +114,11 @@
 			"back to menu":			"Powrót do menu"
 		},
 		"Manage config": {
-			"Manage config":			"Manage config",
-			"Load lang data":			"Load lang data",
-			"Load config":				"Load config",
-			"Save config":				"Save config",
-			"quit":						"Wyjście"
+			"Manage config":		"Manage config",
+			"Load lang data":		"Załaduj dane językowe",
+			"Load config":			"Załaduj konfig",
+			"Save config":			"Zapisz konfig",
+			"quit":					"Wyjście"
 		}		
 	}
 }
